@@ -31,6 +31,7 @@ function App() {
   const [products, setProducts] = useState<Product[]>([]);
   const [listState, setListState] = useState<LoadState>("loading");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [detailState, setDetailState] = useState<LoadState>("ready");
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [productQuery, setProductQuery] = useState("");
@@ -92,6 +93,7 @@ function App() {
   }, []);
 
   async function selectProduct(productId: number) {
+    setSelectedProductId(productId);
     setDetailState("loading");
     setSelectedProduct(null);
     try {
@@ -130,6 +132,9 @@ function App() {
           type="button"
           onClick={() => setPaletteOpen(true)}
           aria-label="Open product finder"
+          aria-controls="product-finder"
+          aria-expanded={paletteOpen}
+          data-state={paletteOpen ? "success" : "idle"}
         >
           Find product <kbd>Ctrl K</kbd>
         </button>
@@ -162,6 +167,20 @@ function App() {
                     key={product.id}
                     type="button"
                     onClick={() => void selectProduct(product.id)}
+                    disabled={
+                      selectedProductId === product.id && detailState === "loading"
+                    }
+                    aria-busy={
+                      selectedProductId === product.id && detailState === "loading"
+                    }
+                    aria-pressed={selectedProductId === product.id}
+                    data-state={
+                      selectedProductId !== product.id
+                        ? "idle"
+                        : detailState === "ready"
+                          ? "success"
+                          : detailState
+                    }
                   >
                     <span className="product-id">#{product.id.toString().padStart(3, "0")}</span>
                     <span className="product-name">{product.name}</span>
@@ -217,6 +236,7 @@ function App() {
           }}
         >
           <section
+            id="product-finder"
             className="command-palette"
             role="dialog"
             aria-modal="true"
@@ -248,6 +268,14 @@ function App() {
                 }
               }}
               aria-label="Filter products"
+              aria-invalid={productQuery.length > 0 && filteredProducts.length === 0}
+              data-state={
+                productQuery.length === 0
+                  ? "idle"
+                  : filteredProducts.length === 0
+                    ? "error"
+                    : "success"
+              }
             />
             <div className="command-results">
               {filteredProducts.map((product, index) => (

@@ -15,6 +15,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.context.annotation.Import;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -23,6 +26,7 @@ import tools.jackson.databind.ObjectMapper;
 
 @Testcontainers
 @ActiveProfiles("local")
+@Import(ProductApiIntegrationTest.FailingController.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class ProductApiIntegrationTest {
 
@@ -49,11 +53,12 @@ class ProductApiIntegrationTest {
         JsonNode body = objectMapper.readTree(response.body());
         assertThat(body.at("/page/number").asInt()).isZero();
         assertThat(body.at("/page/size").asInt()).isEqualTo(20);
-        assertThat(body.at("/page/totalElements").asLong()).isEqualTo(3);
-        assertThat(body.at("/content").size()).isEqualTo(3);
+        assertThat(body.at("/page/totalElements").asLong()).isEqualTo(4);
+        assertThat(body.at("/content").size()).isEqualTo(4);
         assertThat(body.at("/content/0/name").asString()).isEqualTo("Mechanical Keyboard");
         assertThat(body.at("/content/1/name").asString()).isEqualTo("Noise-Cancelling Headphones");
         assertThat(body.at("/content/2/name").asString()).isEqualTo("Portable SSD 1TB");
+        assertThat(body.at("/content/3/name").asString()).isEqualTo("Ergonomic Mouse");
         assertThat(body.at("/content/0/active").asBoolean()).isTrue();
     }
 
@@ -66,7 +71,7 @@ class ProductApiIntegrationTest {
         JsonNode body = objectMapper.readTree(response.body());
         assertThat(body.at("/page/number").asInt()).isZero();
         assertThat(body.at("/page/size").asInt()).isEqualTo(2);
-        assertThat(body.at("/page/totalElements").asLong()).isEqualTo(3);
+        assertThat(body.at("/page/totalElements").asLong()).isEqualTo(4);
         assertThat(body.at("/page/totalPages").asInt()).isEqualTo(2);
         assertThat(body.at("/content/0/name").asString()).isEqualTo("Noise-Cancelling Headphones");
         assertThat(body.at("/content/1/name").asString()).isEqualTo("Mechanical Keyboard");
@@ -129,6 +134,61 @@ class ProductApiIntegrationTest {
         assertValidationProblem(get("/api/v1/products?sort=inventory,desc"), "sort");
     }
 
+    @Test
+    void blankSortIsRejected() throws Exception {
+        assertValidationProblem(get("/api/v1/products?sort="), "sort");
+    }
+
+    @Test
+    void nonNumericPagingInputIsRejected() throws Exception {
+        assertValidationProblem(get("/api/v1/products?page=abc"), "page");
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "'name,asc', 'Ergonomic Mouse'",
+        "'name,desc', 'Portable SSD 1TB'",
+        "'price,asc', 'Portable SSD 1TB'",
+        "'price,desc', 'Noise-Cancelling Headphones'",
+        "'createdAt,asc', 'Mechanical Keyboard'",
+        "'createdAt,desc', 'Mechanical Keyboard'"
+    })
+    void documentedSortAllowlistIsAvailable(String sort, String expectedFirstProduct) throws Exception {
+        var response = get("/api/v1/products?sort=" + sort);
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        JsonNode body = objectMapper.readTree(response.body());
+        assertThat(body.at("/content/0/name").asString()).isEqualTo(expectedFirstProduct);
+    }
+
+    @Test
+    void productIdIsTheStableTieBreaker() throws Exception {
+        var response = get("/api/v1/products?sort=price,desc");
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        JsonNode body = objectMapper.readTree(response.body());
+        assertThat(body.at("/content/1/id").asLong()).isEqualTo(1);
+        assertThat(body.at("/content/2/id").asLong()).isEqualTo(5);
+        assertThat(body.at("/content/1/price").decimalValue())
+                .isEqualByComparingTo(body.at("/content/2/price").decimalValue());
+    }
+
+    @Test
+    void unexpectedFailureUsesTheSanitizedProblemDetailsContract() throws Exception {
+        var response = get("/test/failure");
+
+        assertThat(response.statusCode()).isEqualTo(500);
+        assertThat(response.headers().firstValue("Content-Type"))
+                .hasValueSatisfying(contentType -> assertThat(contentType).contains("application/problem+json"));
+
+        JsonNode body = objectMapper.readTree(response.body());
+        assertThat(body.path("code").asString()).isEqualTo("INTERNAL_ERROR");
+        assertThat(body.path("detail").asString()).isEqualTo("An unexpected error occurred");
+        assertThat(body.path("detail").asString()).doesNotContain("sensitive internal detail");
+        assertThat(response.headers().firstValue("X-Trace-Id"))
+                .contains(body.path("traceId").asString());
+    }
+
     private HttpResponse<String> get(String path) throws Exception {
         var request = HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:" + port + path))
@@ -147,7 +207,18 @@ class ProductApiIntegrationTest {
         assertThat(body.path("status").asInt()).isEqualTo(400);
         assertThat(body.path("code").asString()).isEqualTo("VALIDATION_FAILED");
         assertThat(body.path("traceId").asString()).isNotBlank();
+        assertThat(response.headers().firstValue("X-Trace-Id"))
+                .contains(body.path("traceId").asString());
         assertThat(body.path("fieldErrors").isArray()).isTrue();
         assertThat(body.path("fieldErrors").toString()).contains("\"field\":\"" + field + "\"");
+    }
+
+    @RestController
+    static class FailingController {
+
+        @GetMapping("/test/failure")
+        void fail() {
+            throw new IllegalStateException("sensitive internal detail");
+        }
     }
 }

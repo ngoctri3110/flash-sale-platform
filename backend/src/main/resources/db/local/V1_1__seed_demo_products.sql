@@ -46,3 +46,15 @@ WITH product AS (
 )
 INSERT INTO inventories (product_id, available_quantity)
 SELECT id, 0 FROM product;
+
+WITH product AS (
+    INSERT INTO products (name, description, price)
+    VALUES (
+        'Ergonomic Mouse',
+        'A wireless mouse shaped for comfortable long sessions.',
+        2490000.00
+    )
+    RETURNING id
+)
+INSERT INTO inventories (product_id, available_quantity)
+SELECT id, 20 FROM product;

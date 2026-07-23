@@ -34,6 +34,19 @@ button:disabled {
   opacity: 0.55;
 }
 
+button[data-state="loading"] {
+  cursor: progress;
+}
+
+button[data-state="error"],
+input[data-state="error"] {
+  border-color: var(--color-danger);
+}
+
+button[data-state="success"] {
+  border-color: var(--color-positive);
+}
+
 .app-shell {
   width: min(90rem, 100%);
   min-height: 100vh;
@@ -218,6 +231,19 @@ h1 {
   opacity: 0.55;
 }
 
+.product-row[data-state="loading"] {
+  color: var(--color-muted);
+  cursor: progress;
+}
+
+.product-row[data-state="error"] {
+  color: var(--color-danger);
+}
+
+.product-row[data-state="success"] {
+  color: var(--color-accent);
+}
+
 .product-id {
   color: var(--color-muted);
   font-family: var(--font-mono);
@@ -381,6 +407,14 @@ h1 {
   color: var(--color-muted);
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+.command-palette input[data-state="error"] {
+  border-bottom-color: var(--color-danger);
+}
+
+.command-palette input[data-state="success"] {
+  border-bottom-color: var(--color-positive);
 }
 
 .command-results {

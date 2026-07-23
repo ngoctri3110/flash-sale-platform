@@ -46,6 +46,8 @@ describe("App", () => {
     expect(
       await screen.findByRole("heading", { name: "Mechanical Keyboard" }),
     ).toBeInTheDocument();
+    expect(productButton).toHaveAttribute("data-state", "success");
+    expect(productButton).toHaveAttribute("aria-pressed", "true");
     expect(screen.getAllByText("₫2,490,000")).toHaveLength(2);
     expect(screen.getByText("Available for ordering")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/products/1");
@@ -66,6 +68,47 @@ describe("App", () => {
     expect(screen.getByRole("status", { name: "" })).toHaveTextContent(
       "Loading products…",
     );
+  });
+
+  it("shows which product detail is loading", async () => {
+    const product = {
+      id: 1,
+      name: "Mechanical Keyboard",
+      description: "A compact keyboard.",
+      price: 2490000,
+      currency: "VND",
+      active: true,
+      createdAt: "2026-07-23T00:00:00Z",
+      updatedAt: "2026-07-23T00:00:00Z",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((input: string | URL | Request) => {
+        const url = input.toString();
+        if (url.endsWith("/actuator/health")) {
+          return Promise.resolve(jsonResponse({ status: "UP" }));
+        }
+        if (url.endsWith("/api/v1/products/1")) {
+          return new Promise<Response>(() => undefined);
+        }
+        return Promise.resolve(
+          jsonResponse({
+            content: [product],
+            page: { number: 0, size: 20, totalElements: 1, totalPages: 1 },
+          }),
+        );
+      }),
+    );
+
+    render(<App />);
+    const productButton = await screen.findByRole("button", {
+      name: /Mechanical Keyboard/,
+    });
+    fireEvent.click(productButton);
+
+    expect(screen.getByText("Loading product details…")).toBeInTheDocument();
+    expect(productButton).toHaveAttribute("aria-busy", "true");
+    expect(productButton).toHaveAttribute("data-state", "loading");
   });
 
   it("explains when no active products are available", async () => {
@@ -162,9 +205,11 @@ describe("App", () => {
     expect(
       await screen.findByRole("alert", { name: "Product details unavailable" }),
     ).toHaveTextContent("Product details could not be loaded.");
-    expect(
-      screen.getByRole("button", { name: /Mechanical Keyboard/ }),
-    ).toBeEnabled();
+    const productButton = screen.getByRole("button", {
+      name: /Mechanical Keyboard/,
+    });
+    expect(productButton).toBeEnabled();
+    expect(productButton).toHaveAttribute("data-state", "error");
   });
 
   it("opens and filters the product finder from the keyboard", async () => {
@@ -214,6 +259,12 @@ describe("App", () => {
 
     expect(dialog).toHaveTextContent("Mechanical Keyboard");
     expect(dialog).not.toHaveTextContent("Portable SSD");
+    expect(search).toHaveAttribute("data-state", "success");
+
+    fireEvent.change(search, { target: { value: "missing" } });
+    expect(search).toHaveAttribute("aria-invalid", "true");
+    expect(search).toHaveAttribute("data-state", "error");
+    expect(dialog).toHaveTextContent("No matching products.");
 
     fireEvent.keyDown(document, { key: "Escape" });
     expect(

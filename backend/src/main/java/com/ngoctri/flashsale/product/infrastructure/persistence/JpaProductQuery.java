@@ -21,11 +21,9 @@ class JpaProductQuery implements ProductQuery {
 
     @Override
     public ProductPage findActiveProducts(ProductPageQuery query) {
-        var primaryOrder = query.sort().direction() == ProductSort.Direction.ASC
-                ? Sort.Order.asc(query.sort().property())
-                : Sort.Order.desc(query.sort().property());
+        var primaryOrder = toOrder(query.sort());
         var sort = Sort.by(primaryOrder);
-        if (!query.sort().property().equals("id")) {
+        if (!primaryOrder.getProperty().equals("id")) {
             sort = sort.and(Sort.by("id").ascending());
         }
         var pageable = PageRequest.of(query.page(), query.size(), sort);
@@ -43,6 +41,19 @@ class JpaProductQuery implements ProductQuery {
     @Override
     public Optional<ProductView> findById(long productId) {
         return repository.findById(productId).map(JpaProductQuery::toView);
+    }
+
+    private static Sort.Order toOrder(ProductSort sort) {
+        return switch (sort) {
+            case ID_ASC -> Sort.Order.asc("id");
+            case ID_DESC -> Sort.Order.desc("id");
+            case NAME_ASC -> Sort.Order.asc("name");
+            case NAME_DESC -> Sort.Order.desc("name");
+            case PRICE_ASC -> Sort.Order.asc("price");
+            case PRICE_DESC -> Sort.Order.desc("price");
+            case CREATED_AT_ASC -> Sort.Order.asc("createdAt");
+            case CREATED_AT_DESC -> Sort.Order.desc("createdAt");
+        };
     }
 
     private static ProductView toView(ProductEntity product) {
