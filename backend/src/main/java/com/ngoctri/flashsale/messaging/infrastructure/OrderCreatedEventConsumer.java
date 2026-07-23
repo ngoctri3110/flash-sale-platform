@@ -23,7 +23,7 @@ class OrderCreatedEventConsumer {
 
     @KafkaListener(
             topics = "order-events.v1",
-            groupId = "order-event-audit.v1",
+            groupId = "order-event-audit.v2",
             containerFactory = "orderEventsKafkaListenerContainerFactory")
     @Transactional
     public void consume(String payload) {
