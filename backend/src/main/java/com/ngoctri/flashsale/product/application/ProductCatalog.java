@@ -12,7 +12,7 @@ public class ProductCatalog {
     }
 
     public ProductPage browse(int page, int size, ProductSort sort) {
-        return productQuery.findActiveProducts(new ProductPageQuery(page, size, sort));
+        return productQuery.findProducts(new ProductPageQuery(page, size, sort));
     }
 
     public ProductView findById(long productId) {

@@ -3,6 +3,7 @@ package com.ngoctri.flashsale.product.api;
 import com.ngoctri.flashsale.product.application.ProductCatalog;
 import com.ngoctri.flashsale.product.application.ProductCreator;
 import com.ngoctri.flashsale.product.application.ProductSort;
+import com.ngoctri.flashsale.product.application.ProductUpdater;
 import com.ngoctri.flashsale.product.application.UnsupportedProductSortException;
 import com.ngoctri.flashsale.shared.api.ListParameters;
 import jakarta.validation.Valid;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -22,10 +24,15 @@ class ProductController {
 
     private final ProductCatalog productCatalog;
     private final ProductCreator productCreator;
+    private final ProductUpdater productUpdater;
 
-    ProductController(ProductCatalog productCatalog, ProductCreator productCreator) {
+    ProductController(
+            ProductCatalog productCatalog,
+            ProductCreator productCreator,
+            ProductUpdater productUpdater) {
         this.productCatalog = productCatalog;
         this.productCreator = productCreator;
+        this.productUpdater = productUpdater;
     }
 
     @GetMapping
@@ -53,6 +60,12 @@ class ProductController {
         return ResponseEntity
                 .created(URI.create("/api/v1/products/" + created.id()))
                 .body(created);
+    }
+
+    @PatchMapping("/{productId}")
+    ProductResponse updateProduct(
+            @PathVariable long productId, @Valid @RequestBody UpdateProductRequest request) {
+        return ProductResponse.from(productUpdater.update(productId, request.toCommand()));
     }
 
     private static ProductSort parseSort(String value) {

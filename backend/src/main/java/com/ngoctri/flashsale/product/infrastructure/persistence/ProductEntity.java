@@ -1,5 +1,6 @@
 package com.ngoctri.flashsale.product.infrastructure.persistence;
 
+import com.ngoctri.flashsale.product.application.UpdateProductCommand;
 import java.math.BigDecimal;
 import java.time.Instant;
 
@@ -56,6 +57,22 @@ class ProductEntity {
         product.createdAt = now;
         product.updatedAt = now;
         return product;
+    }
+
+    void update(UpdateProductCommand command, Instant now) {
+        if (command.name().present()) {
+            name = command.name().value();
+        }
+        if (command.description().present()) {
+            description = command.description().value();
+        }
+        if (command.price().present()) {
+            price = command.price().value();
+        }
+        if (command.active().present()) {
+            active = command.active().value();
+        }
+        updatedAt = now;
     }
 
     Long getId() {

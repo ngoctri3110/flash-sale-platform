@@ -7,6 +7,7 @@ import com.ngoctri.flashsale.product.application.ProductQuery;
 import com.ngoctri.flashsale.product.application.ProductSort;
 import com.ngoctri.flashsale.product.application.ProductStore;
 import com.ngoctri.flashsale.product.application.ProductView;
+import com.ngoctri.flashsale.product.application.UpdateProductCommand;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
@@ -26,14 +27,14 @@ class JpaProductRepositoryAdapter implements ProductQuery, ProductStore {
     }
 
     @Override
-    public ProductPage findActiveProducts(ProductPageQuery query) {
+    public ProductPage findProducts(ProductPageQuery query) {
         var primaryOrder = toOrder(query.sort());
         var sort = Sort.by(primaryOrder);
         if (!primaryOrder.getProperty().equals("id")) {
             sort = sort.and(Sort.by("id").ascending());
         }
         var pageable = PageRequest.of(query.page(), query.size(), sort);
-        var result = repository.findAllByActiveTrue(pageable);
+        var result = repository.findAll(pageable);
         var content = result.getContent().stream().map(JpaProductRepositoryAdapter::toView).toList();
 
         return new ProductPage(
@@ -59,6 +60,14 @@ class JpaProductRepositoryAdapter implements ProductQuery, ProductStore {
                 command.active(),
                 now);
         return toView(repository.save(product));
+    }
+
+    @Override
+    public Optional<ProductView> update(long productId, UpdateProductCommand command) {
+        return repository.findById(productId).map(product -> {
+            product.update(command, Instant.now(clock));
+            return toView(product);
+        });
     }
 
     private static Sort.Order toOrder(ProductSort sort) {

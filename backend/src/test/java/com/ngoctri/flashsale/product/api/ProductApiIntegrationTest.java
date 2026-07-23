@@ -243,6 +243,96 @@ class ProductApiIntegrationTest {
     }
 
     @Test
+    void administratorCanPartiallyUpdateProductWithoutReplacingUnspecifiedValues()
+            throws Exception {
+        var productId = createTestProduct("Original Product");
+        JsonNode before = objectMapper.readTree(get("/api/v1/products/" + productId).body());
+
+        var response = patch(
+                "/api/v1/products/" + productId,
+                """
+                {
+                  "name": "Updated Product",
+                  "active": false
+                }
+                """);
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        JsonNode updated = objectMapper.readTree(response.body());
+        assertThat(updated.path("name").asString()).isEqualTo("Updated Product");
+        assertThat(updated.path("description").asString()).isEqualTo("Created for update tests.");
+        assertThat(updated.path("price").decimalValue()).isEqualByComparingTo("100000.00");
+        assertThat(updated.path("active").asBoolean()).isFalse();
+        assertThat(updated.path("createdAt").asString()).isEqualTo(before.path("createdAt").asString());
+        assertThat(updated.path("updatedAt").asString())
+                .isNotEqualTo(before.path("updatedAt").asString());
+
+        JsonNode detail = objectMapper.readTree(get("/api/v1/products/" + productId).body());
+        assertThat(detail.path("name").asString()).isEqualTo("Updated Product");
+        assertThat(detail.path("active").asBoolean()).isFalse();
+
+        JsonNode list = objectMapper.readTree(get("/api/v1/products?size=100").body());
+        assertThat(list.path("content").toString()).contains("\"id\":" + productId);
+    }
+
+    @Test
+    void administratorCanExplicitlyClearOptionalProductDescription() throws Exception {
+        var productId = createTestProduct("Clear Description");
+
+        var response = patch(
+                "/api/v1/products/" + productId,
+                """
+                {
+                  "description": null
+                }
+                """);
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(objectMapper.readTree(response.body()).path("description").isNull()).isTrue();
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "'{}', request",
+        "'{\"name\":null}', name",
+        "'{\"name\":\" Bad Name \"}', name",
+        "'{\"name\":\"\"}', name",
+        "'{\"price\":null}', price",
+        "'{\"price\":0}', price",
+        "'{\"price\":1.001}', price",
+        "'{\"active\":null}', active"
+    })
+    void invalidProductUpdatesReturnStableFieldErrors(String body, String field)
+            throws Exception {
+        assertValidationProblem(patch("/api/v1/products/1", body), field);
+    }
+
+    @Test
+    void overlongProductUpdateFieldsAreRejected() throws Exception {
+        var response = patch(
+                "/api/v1/products/1",
+                """
+                {
+                  "name": "%s",
+                  "description": "%s"
+                }
+                """.formatted("N".repeat(121), "D".repeat(1001)));
+
+        assertValidationProblem(response, "name");
+        assertThat(response.body()).contains("\"field\":\"description\"");
+    }
+
+    @Test
+    void missingProductUpdateUsesThePublicProblemDetailsContract() throws Exception {
+        var response = patch("/api/v1/products/999999", "{\"active\":false}");
+
+        assertThat(response.statusCode()).isEqualTo(404);
+        assertThat(response.body())
+                .contains("\"code\":\"PRODUCT_NOT_FOUND\"")
+                .contains("\"instance\":\"/api/v1/products/999999\"");
+    }
+
+    @Test
     void productRollsBackWhenInitialInventoryCannotBeCommitted() {
         doThrow(new IllegalStateException("simulated inventory persistence failure"))
                 .when(initialInventoryStore)
@@ -271,7 +361,7 @@ class ProductApiIntegrationTest {
     }
 
     @Test
-    void customerCanBrowseSeededActiveProducts() throws Exception {
+    void customerCanBrowseSeededProductsIncludingInactiveProducts() throws Exception {
         var response = get("/api/v1/products");
 
         assertThat(response.statusCode()).isEqualTo(200);
@@ -281,13 +371,15 @@ class ProductApiIntegrationTest {
         JsonNode body = objectMapper.readTree(response.body());
         assertThat(body.at("/page/number").asInt()).isZero();
         assertThat(body.at("/page/size").asInt()).isEqualTo(20);
-        assertThat(body.at("/page/totalElements").asLong()).isEqualTo(4);
-        assertThat(body.at("/content").size()).isEqualTo(4);
+        assertThat(body.at("/page/totalElements").asLong()).isEqualTo(5);
+        assertThat(body.at("/content").size()).isEqualTo(5);
         assertThat(body.at("/content/0/name").asString()).isEqualTo("Mechanical Keyboard");
         assertThat(body.at("/content/1/name").asString()).isEqualTo("Noise-Cancelling Headphones");
         assertThat(body.at("/content/2/name").asString()).isEqualTo("Portable SSD 1TB");
-        assertThat(body.at("/content/3/name").asString()).isEqualTo("Ergonomic Mouse");
+        assertThat(body.at("/content/3/name").asString()).isEqualTo("Smart Desk Lamp");
+        assertThat(body.at("/content/4/name").asString()).isEqualTo("Ergonomic Mouse");
         assertThat(body.at("/content/0/active").asBoolean()).isTrue();
+        assertThat(body.at("/content/3/active").asBoolean()).isFalse();
     }
 
     @Test
@@ -299,8 +391,8 @@ class ProductApiIntegrationTest {
         JsonNode body = objectMapper.readTree(response.body());
         assertThat(body.at("/page/number").asInt()).isZero();
         assertThat(body.at("/page/size").asInt()).isEqualTo(2);
-        assertThat(body.at("/page/totalElements").asLong()).isEqualTo(4);
-        assertThat(body.at("/page/totalPages").asInt()).isEqualTo(2);
+        assertThat(body.at("/page/totalElements").asLong()).isEqualTo(5);
+        assertThat(body.at("/page/totalPages").asInt()).isEqualTo(3);
         assertThat(body.at("/content/0/name").asString()).isEqualTo("Noise-Cancelling Headphones");
         assertThat(body.at("/content/1/name").asString()).isEqualTo("Mechanical Keyboard");
     }
@@ -377,8 +469,8 @@ class ProductApiIntegrationTest {
     @ParameterizedTest
     @CsvSource({
         "'name,asc', 'Ergonomic Mouse'",
-        "'name,desc', 'Portable SSD 1TB'",
-        "'price,asc', 'Portable SSD 1TB'",
+        "'name,desc', 'Smart Desk Lamp'",
+        "'price,asc', 'Smart Desk Lamp'",
         "'price,desc', 'Noise-Cancelling Headphones'",
         "'createdAt,asc', 'Mechanical Keyboard'",
         "'createdAt,desc', 'Mechanical Keyboard'"
@@ -436,6 +528,32 @@ class ProductApiIntegrationTest {
                 .build();
 
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    private HttpResponse<String> patch(String path, String body) throws Exception {
+        var request = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + path))
+                .header("Content-Type", "application/json")
+                .method("PATCH", HttpRequest.BodyPublishers.ofString(body))
+                .build();
+
+        return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    private long createTestProduct(String name) throws Exception {
+        var response = post(
+                "/api/v1/products",
+                """
+                {
+                  "name": "%s",
+                  "description": "Created for update tests.",
+                  "price": 100000,
+                  "active": true,
+                  "initialInventory": 3
+                }
+                """.formatted(name));
+        assertThat(response.statusCode()).isEqualTo(201);
+        return objectMapper.readTree(response.body()).path("id").asLong();
     }
 
     private void assertValidationProblem(HttpResponse<String> response, String field) throws Exception {

@@ -25,13 +25,25 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export function AdminProductWorkspace({
   onCreated,
+  onUpdated,
+  products,
 }: {
   onCreated: (product: Product) => void;
+  onUpdated: (product: Product) => void;
+  products: Product[];
 }) {
   const [creationState, setCreationState] = useState<CreationState>("idle");
   const [creationErrors, setCreationErrors] = useState<Record<string, string>>({});
   const [creationMessage, setCreationMessage] = useState("");
   const [createdProduct, setCreatedProduct] = useState<Product | null>(null);
+  const [selectedEditId, setSelectedEditId] = useState("");
+  const [editState, setEditState] = useState<CreationState>("idle");
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+  const [editMessage, setEditMessage] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editPrice, setEditPrice] = useState("");
+  const [editActive, setEditActive] = useState(false);
   const [inventory, setInventory] = useState<Inventory[]>([]);
   const [inventoryState, setInventoryState] = useState<LoadState>("loading");
   const latestInventoryRequest = useRef(0);
@@ -104,9 +116,195 @@ export function AdminProductWorkspace({
     }
   }
 
+  function selectProductForEdit(productId: string) {
+    setSelectedEditId(productId);
+    setEditState("idle");
+    setEditErrors({});
+    setEditMessage("");
+    const product = products.find((candidate) => candidate.id === Number(productId));
+    if (!product) return;
+    setEditName(product.name);
+    setEditDescription(product.description ?? "");
+    setEditPrice(String(product.price));
+    setEditActive(product.active);
+  }
+
+  async function updateProduct(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const original = products.find(
+      (candidate) => candidate.id === Number(selectedEditId),
+    );
+    if (!original) return;
+
+    const payload: Record<string, string | number | boolean | null> = {};
+    if (editName !== original.name) payload.name = editName;
+    if (editDescription !== (original.description ?? "")) {
+      payload.description = editDescription === "" ? null : editDescription;
+    }
+    if (Number(editPrice) !== original.price) payload.price = Number(editPrice);
+    if (editActive !== original.active) payload.active = editActive;
+
+    if (Object.keys(payload).length === 0) {
+      setEditMessage("No product fields have changed.");
+      setEditState("success");
+      return;
+    }
+
+    setEditState("loading");
+    setEditErrors({});
+    setEditMessage("");
+    try {
+      const response = await fetch(
+        `${apiBaseUrl}/api/v1/products/${original.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
+      if (!response.ok) {
+        const problem = (await response.json()) as ProblemDetail;
+        setEditErrors(
+          Object.fromEntries(
+            (problem.fieldErrors ?? []).map((error) => [error.field, error.message]),
+          ),
+        );
+        setEditMessage(problem.detail ?? "The product could not be updated.");
+        setEditState("error");
+        return;
+      }
+
+      const product = (await response.json()) as Product;
+      setEditName(product.name);
+      setEditDescription(product.description ?? "");
+      setEditPrice(String(product.price));
+      setEditActive(product.active);
+      setEditMessage(`${product.name} updated. The Shop now uses the new values.`);
+      setEditState("success");
+      onUpdated(product);
+    } catch {
+      setEditMessage("The API is unavailable. Check the local backend and retry.");
+      setEditState("error");
+    }
+  }
+
   return (
     <main className="admin-workspace">
       <section className="admin-form-panel" aria-labelledby="create-product-title">
+        <div className="product-editor" aria-labelledby="edit-product-title">
+          <div className="section-heading">
+            <p className="eyebrow">PATCH /api/v1/products/:id</p>
+            <h2 id="edit-product-title">Edit product</h2>
+            <p className="section-intro">
+              Only changed fields are sent. Inactive Products remain visible but
+              unavailable for ordering.
+            </p>
+          </div>
+
+          <label className="product-picker" htmlFor="edit-product">
+            Edit product
+            <select
+              id="edit-product"
+              value={selectedEditId}
+              onChange={(event) => selectProductForEdit(event.target.value)}
+            >
+              <option value="">Choose a Product</option>
+              {products.map((product) => (
+                <option key={product.id} value={product.id}>
+                  #{product.id} · {product.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {selectedEditId && (
+            <form className="product-form" onSubmit={(event) => void updateProduct(event)}>
+              <fieldset disabled={editState === "loading"}>
+                <FormField
+                  id="edit-product-name"
+                  label="Edit product name"
+                  error={editErrors.name}
+                >
+                  <input
+                    id="edit-product-name"
+                    value={editName}
+                    onChange={(event) => setEditName(event.target.value)}
+                    required
+                    maxLength={120}
+                    aria-invalid={Boolean(editErrors.name)}
+                    aria-describedby="edit-product-name-help"
+                    data-state={fieldState(editState, editErrors.name)}
+                  />
+                </FormField>
+                <FormField
+                  id="edit-product-description"
+                  label="Edit description"
+                  error={editErrors.description}
+                >
+                  <textarea
+                    id="edit-product-description"
+                    value={editDescription}
+                    onChange={(event) => setEditDescription(event.target.value)}
+                    maxLength={1000}
+                    aria-invalid={Boolean(editErrors.description)}
+                    aria-describedby="edit-product-description-help"
+                    data-state={fieldState(editState, editErrors.description)}
+                  />
+                </FormField>
+                <FormField
+                  id="edit-product-price"
+                  label="Edit price (VND)"
+                  error={editErrors.price}
+                >
+                  <input
+                    id="edit-product-price"
+                    value={editPrice}
+                    onChange={(event) => setEditPrice(event.target.value)}
+                    type="number"
+                    required
+                    min="0.01"
+                    step="0.01"
+                    inputMode="decimal"
+                    aria-invalid={Boolean(editErrors.price)}
+                    aria-describedby="edit-product-price-help"
+                    data-state={fieldState(editState, editErrors.price)}
+                  />
+                </FormField>
+                <label className="checkbox-field">
+                  <input
+                    aria-label="Edit active for sale"
+                    type="checkbox"
+                    checked={editActive}
+                    onChange={(event) => setEditActive(event.target.checked)}
+                  />
+                  <span>
+                    <strong>Active for sale</strong>
+                    <small>Turn this off to prevent new Orders.</small>
+                  </span>
+                </label>
+                {editState === "error" && (
+                  <p className="form-error" role="alert">
+                    {editMessage}
+                  </p>
+                )}
+                {editState === "success" && (
+                  <p className="form-success" role="status">
+                    {editMessage}
+                  </p>
+                )}
+                <button
+                  className="submit-product"
+                  type="submit"
+                  aria-busy={editState === "loading"}
+                  data-state={editState}
+                >
+                  {editState === "loading" ? "Saving changes…" : "Save changes"}
+                </button>
+              </fieldset>
+            </form>
+          )}
+        </div>
+
         <div className="section-heading">
           <p className="eyebrow">POST /api/v1/products</p>
           <h1 id="create-product-title">Create product</h1>

@@ -441,6 +441,141 @@ describe("App", () => {
     ).toBeInTheDocument();
   });
 
+  it("lets an administrator edit mutable product fields and reflects them in the Shop", async () => {
+    const product = {
+      id: 4,
+      name: "Smart Desk Lamp",
+      description: "An adjustable desk lamp.",
+      price: 1290000,
+      currency: "VND",
+      active: true,
+      createdAt: "2026-07-23T00:00:00Z",
+      updatedAt: "2026-07-23T00:00:00Z",
+    };
+    const updatedProduct = {
+      ...product,
+      name: "Focus Desk Lamp",
+      active: false,
+      updatedAt: "2026-07-23T01:00:00Z",
+    };
+    const fetchMock = vi.fn().mockImplementation(
+      (input: string | URL | Request, init?: RequestInit) => {
+        const url = input.toString();
+        if (url.endsWith("/actuator/health")) {
+          return Promise.resolve(jsonResponse({ status: "UP" }));
+        }
+        if (url.endsWith("/api/v1/products/4") && init?.method === "PATCH") {
+          return Promise.resolve(jsonResponse(updatedProduct));
+        }
+        if (url.includes("/api/v1/inventories")) {
+          return Promise.resolve(jsonResponse({ content: [] }));
+        }
+        return Promise.resolve(
+          jsonResponse({
+            content: [product],
+            page: { number: 0, size: 20, totalElements: 1, totalPages: 1 },
+          }),
+        );
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    await screen.findByRole("button", { name: /Smart Desk Lamp/ });
+    fireEvent.click(screen.getByRole("button", { name: "Admin" }));
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Edit product" }), {
+      target: { value: "4" },
+    });
+    fireEvent.change(screen.getByLabelText("Edit product name"), {
+      target: { value: "Focus Desk Lamp" },
+    });
+    fireEvent.click(screen.getByLabelText("Edit active for sale"));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    expect(await screen.findByText(/Focus Desk Lamp updated/)).toHaveAttribute(
+      "role",
+      "status",
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/products/4",
+      expect.objectContaining({
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Focus Desk Lamp", active: false }),
+      }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Shop" }));
+    expect(
+      screen.getByRole("button", { name: /Focus Desk Lamp.*Currently unavailable/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("maps product update problem details back to the edit form", async () => {
+    const product = {
+      id: 1,
+      name: "Mechanical Keyboard",
+      description: null,
+      price: 2490000,
+      currency: "VND",
+      active: true,
+      createdAt: "2026-07-23T00:00:00Z",
+      updatedAt: "2026-07-23T00:00:00Z",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(
+        (input: string | URL | Request, init?: RequestInit) => {
+          const url = input.toString();
+          if (url.endsWith("/actuator/health")) {
+            return Promise.resolve(jsonResponse({ status: "UP" }));
+          }
+          if (url.endsWith("/api/v1/products/1") && init?.method === "PATCH") {
+            return Promise.resolve(
+              jsonResponse(
+                {
+                  detail: "One or more request parameters are invalid",
+                  fieldErrors: [{ field: "name", message: "must not be blank" }],
+                },
+                400,
+              ),
+            );
+          }
+          if (url.includes("/api/v1/inventories")) {
+            return Promise.resolve(jsonResponse({ content: [] }));
+          }
+          return Promise.resolve(
+            jsonResponse({
+              content: [product],
+              page: { number: 0, size: 20, totalElements: 1, totalPages: 1 },
+            }),
+          );
+        },
+      ),
+    );
+
+    render(<App />);
+    await screen.findByRole("button", { name: /Mechanical Keyboard/ });
+    fireEvent.click(screen.getByRole("button", { name: "Admin" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Edit product" }), {
+      target: { value: "1" },
+    });
+    fireEvent.change(screen.getByLabelText("Edit product name"), {
+      target: { value: " " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "One or more request parameters are invalid",
+    );
+    expect(screen.getByLabelText("Edit product name")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(screen.getByText("must not be blank")).toBeInTheDocument();
+  });
+
   it("locks the submitted form while product creation is pending", async () => {
     vi.stubGlobal(
       "fetch",

@@ -227,7 +227,12 @@ function App() {
                     }
                   >
                     <span className="product-id">#{product.id.toString().padStart(3, "0")}</span>
-                    <span className="product-name">{product.name}</span>
+                    <span className="product-name">
+                      {product.name}
+                      {!product.active && (
+                        <small className="availability-note">Currently unavailable</small>
+                      )}
+                    </span>
                     <span className="product-price">{formatMoney(product)}</span>
                     <span aria-hidden="true">→</span>
                   </button>
@@ -249,7 +254,7 @@ function App() {
             <>
               <p className="eyebrow">Product #{selectedProduct.id}</p>
               <h2>{selectedProduct.name}</h2>
-              <p>{selectedProduct.description}</p>
+              <p>{selectedProduct.description ?? "No description provided."}</p>
               <dl>
                 <div>
                   <dt>Price</dt>
@@ -273,12 +278,22 @@ function App() {
       </main>
       ) : (
         <AdminProductWorkspace
+          products={products}
           onCreated={(product) => {
-            if (!product.active) return;
             setProducts((current) =>
               [...current.filter((candidate) => candidate.id !== product.id), product]
                 .sort((left, right) => left.id - right.id),
             );
+          }}
+          onUpdated={(product) => {
+            setProducts((current) =>
+              current.map((candidate) =>
+                candidate.id === product.id ? product : candidate,
+              ),
+            );
+            if (selectedProductId === product.id) {
+              setSelectedProduct(product);
+            }
           }}
         />
       )}
