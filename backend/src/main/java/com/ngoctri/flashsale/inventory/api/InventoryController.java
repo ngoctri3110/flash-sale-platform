@@ -3,7 +3,7 @@ package com.ngoctri.flashsale.inventory.api;
 import com.ngoctri.flashsale.inventory.application.InventoryCatalog;
 import com.ngoctri.flashsale.inventory.application.InventorySort;
 import com.ngoctri.flashsale.inventory.application.UnsupportedInventorySortException;
-import com.ngoctri.flashsale.shared.api.InvalidListParameterException;
+import com.ngoctri.flashsale.shared.api.ListParameters;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -25,8 +25,8 @@ class InventoryController {
             @RequestParam(required = false) String size,
             @RequestParam(required = false) String sort) {
         return InventoryPageResponse.from(inventoryCatalog.browse(
-                parseInteger("page", page, 0, 0, Integer.MAX_VALUE),
-                parseInteger("size", size, 20, 1, 100),
+                ListParameters.parseInteger("page", page, 0, 0, Integer.MAX_VALUE),
+                ListParameters.parseInteger("size", size, 20, 1, 100),
                 parseSort(sort == null ? "productId,asc" : sort)));
     }
 
@@ -42,23 +42,4 @@ class InventoryController {
         };
     }
 
-    private static int parseInteger(
-            String field, String value, int defaultValue, int minimum, int maximum) {
-        if (value == null) {
-            return defaultValue;
-        }
-        if (value.isBlank()) {
-            throw new InvalidListParameterException(field, "must not be blank");
-        }
-        try {
-            var parsed = Integer.parseInt(value);
-            if (parsed < minimum || parsed > maximum) {
-                throw new InvalidListParameterException(
-                        field, "must be between " + minimum + " and " + maximum);
-            }
-            return parsed;
-        } catch (NumberFormatException exception) {
-            throw new InvalidListParameterException(field, "must be a valid integer");
-        }
-    }
 }

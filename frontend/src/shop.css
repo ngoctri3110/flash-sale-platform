@@ -453,6 +453,8 @@ button[data-state="success"] {
 .inventory-list article div {
   display: grid;
   gap: var(--space-xs);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .inventory-list article small,

@@ -381,8 +381,8 @@ describe("App", () => {
               page: {
                 number: 0,
                 size: 100,
-                totalElements: productCreated ? 1 : 0,
-                totalPages: productCreated ? 1 : 0,
+                totalElements: productCreated ? 101 : 0,
+                totalPages: productCreated ? 2 : 0,
               },
             }),
           );
@@ -417,6 +417,9 @@ describe("App", () => {
 
     expect(await screen.findByText(/Standing Desk committed/)).toBeInTheDocument();
     expect(await screen.findByText("25 available")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/inventories?size=100&sort=productId,desc",
+    );
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/products",
       expect.objectContaining({
@@ -476,6 +479,87 @@ describe("App", () => {
 
     expect(name).toBeDisabled();
     expect(screen.getByRole("button", { name: "Creating product…" })).toBeDisabled();
+  });
+
+  it("keeps the post-create Inventory refresh when an older request finishes later", async () => {
+    const createdProduct = {
+      id: 101,
+      name: "Newest Product",
+      description: "Created after the first inventory request.",
+      price: 1000,
+      currency: "VND",
+      active: true,
+      createdAt: "2026-07-23T00:00:00Z",
+      updatedAt: "2026-07-23T00:00:00Z",
+    };
+    let resolveInitialInventory!: (response: Response) => void;
+    let inventoryRequests = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(
+        (input: string | URL | Request, init?: RequestInit) => {
+          const url = input.toString();
+          if (url.endsWith("/actuator/health")) {
+            return Promise.resolve(jsonResponse({ status: "UP" }));
+          }
+          if (url.endsWith("/api/v1/products") && init?.method === "POST") {
+            return Promise.resolve(jsonResponse(createdProduct, 201));
+          }
+          if (url.includes("/api/v1/inventories")) {
+            inventoryRequests += 1;
+            if (inventoryRequests === 1) {
+              return new Promise<Response>((resolve) => {
+                resolveInitialInventory = resolve;
+              });
+            }
+            return Promise.resolve(
+              jsonResponse({
+                content: [
+                  {
+                    productId: 101,
+                    productName: "Newest Product",
+                    availableQuantity: 7,
+                    updatedAt: "2026-07-23T00:00:00Z",
+                  },
+                ],
+                page: { number: 0, size: 100, totalElements: 101, totalPages: 2 },
+              }),
+            );
+          }
+          return Promise.resolve(
+            jsonResponse({
+              content: [],
+              page: { number: 0, size: 20, totalElements: 0, totalPages: 0 },
+            }),
+          );
+        },
+      ),
+    );
+
+    render(<App />);
+    await screen.findByText("No products are available for this sale yet.");
+    fireEvent.click(screen.getByRole("button", { name: "Admin" }));
+    fireEvent.change(screen.getByLabelText("Product name"), {
+      target: { value: "Newest Product" },
+    });
+    fireEvent.change(screen.getByLabelText("Price (VND)"), {
+      target: { value: "1000" },
+    });
+    fireEvent.change(screen.getByLabelText("Initial inventory"), {
+      target: { value: "7" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create product" }));
+
+    expect(await screen.findByText("7 available")).toBeInTheDocument();
+    resolveInitialInventory(
+      jsonResponse({
+        content: [],
+        page: { number: 0, size: 100, totalElements: 0, totalPages: 0 },
+      }),
+    );
+    await waitFor(() => {
+      expect(screen.getByText("7 available")).toBeInTheDocument();
+    });
   });
 
   it("maps product creation problem details back to the Admin form", async () => {

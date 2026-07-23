@@ -1,21 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 
 import { AdminProductWorkspace } from "./AdminProductWorkspace";
+import type { Product } from "./api-types";
 
 type HealthState = "checking" | "healthy" | "unavailable";
 type LoadState = "loading" | "ready" | "error";
 type WorkspaceMode = "shop" | "admin";
-
-export type Product = {
-  id: number;
-  name: string;
-  description: string;
-  price: number;
-  currency: string;
-  active: boolean;
-  createdAt: string;
-  updatedAt: string;
-};
 
 type ProductPage = {
   content: Product[];

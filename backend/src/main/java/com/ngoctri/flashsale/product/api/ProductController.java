@@ -4,7 +4,7 @@ import com.ngoctri.flashsale.product.application.ProductCatalog;
 import com.ngoctri.flashsale.product.application.ProductCreator;
 import com.ngoctri.flashsale.product.application.ProductSort;
 import com.ngoctri.flashsale.product.application.UnsupportedProductSortException;
-import com.ngoctri.flashsale.shared.api.InvalidListParameterException;
+import com.ngoctri.flashsale.shared.api.ListParameters;
 import jakarta.validation.Valid;
 import java.net.URI;
 import org.springframework.http.ResponseEntity;
@@ -36,8 +36,8 @@ class ProductController {
         var requestedSort = sort == null ? "id,asc" : sort;
         return ProductPageResponse.from(
                 productCatalog.browse(
-                        parsePagingParameter("page", page, 0, 0, Integer.MAX_VALUE),
-                        parsePagingParameter("size", size, 20, 1, 100),
+                        ListParameters.parseInteger("page", page, 0, 0, Integer.MAX_VALUE),
+                        ListParameters.parseInteger("size", size, 20, 1, 100),
                         parseSort(requestedSort)));
     }
 
@@ -69,29 +69,4 @@ class ProductController {
         };
     }
 
-    private static int parsePagingParameter(
-            String field,
-            String value,
-            int defaultValue,
-            int minimum,
-            int maximum) {
-        if (value == null) {
-            return defaultValue;
-        }
-        if (value.isBlank()) {
-            throw new InvalidListParameterException(field, "must not be blank");
-        }
-
-        try {
-            var parsed = Integer.parseInt(value);
-            if (parsed < minimum || parsed > maximum) {
-                throw new InvalidListParameterException(
-                        field,
-                        "must be between " + minimum + " and " + maximum);
-            }
-            return parsed;
-        } catch (NumberFormatException exception) {
-            throw new InvalidListParameterException(field, "must be a valid integer");
-        }
-    }
 }

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { Product } from "./App";
+import type { Product } from "./api-types";
 
 type CreationState = "idle" | "loading" | "error" | "success";
 type LoadState = "loading" | "ready" | "error";
@@ -34,16 +34,22 @@ export function AdminProductWorkspace({
   const [createdProduct, setCreatedProduct] = useState<Product | null>(null);
   const [inventory, setInventory] = useState<Inventory[]>([]);
   const [inventoryState, setInventoryState] = useState<LoadState>("loading");
+  const latestInventoryRequest = useRef(0);
 
   const loadInventory = useCallback(async () => {
+    const requestId = ++latestInventoryRequest.current;
     setInventoryState("loading");
     try {
-      const response = await fetch(`${apiBaseUrl}/api/v1/inventories?size=100`);
+      const response = await fetch(
+        `${apiBaseUrl}/api/v1/inventories?size=100&sort=productId,desc`,
+      );
       if (!response.ok) throw new Error("Inventory request failed");
       const page = (await response.json()) as InventoryPage;
+      if (requestId !== latestInventoryRequest.current) return;
       setInventory(page.content);
       setInventoryState("ready");
     } catch {
+      if (requestId !== latestInventoryRequest.current) return;
       setInventoryState("error");
     }
   }, []);

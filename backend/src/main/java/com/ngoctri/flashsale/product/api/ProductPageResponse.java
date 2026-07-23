@@ -3,6 +3,7 @@ package com.ngoctri.flashsale.product.api;
 import java.util.List;
 
 import com.ngoctri.flashsale.product.application.ProductPage;
+import com.ngoctri.flashsale.shared.api.PageMetadataResponse;
 
 public record ProductPageResponse(
         List<ProductResponse> content,

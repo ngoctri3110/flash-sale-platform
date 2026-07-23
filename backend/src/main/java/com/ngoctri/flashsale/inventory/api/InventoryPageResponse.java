@@ -1,7 +1,7 @@
 package com.ngoctri.flashsale.inventory.api;
 
 import com.ngoctri.flashsale.inventory.application.InventoryPage;
-import com.ngoctri.flashsale.product.api.PageMetadataResponse;
+import com.ngoctri.flashsale.shared.api.PageMetadataResponse;
 import java.util.List;
 
 record InventoryPageResponse(

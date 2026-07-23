@@ -227,6 +227,21 @@ class ProductApiIntegrationTest {
                 .hasMessageContaining("ck_inventories_available_quantity_non_negative");
     }
 
+    @ParameterizedTest
+    @CsvSource({
+        "'INSERT INTO products (name, price, currency, active) VALUES ('' '', 1000, ''VND'', true)', ck_products_name_trimmed",
+        "'INSERT INTO products (name, price, currency, active) VALUES (''Invalid Price'', 0, ''VND'', true)', ck_products_price_positive",
+        "'INSERT INTO products (name, price, currency, active) VALUES (''Invalid Currency'', 1000, ''USD'', true)', ck_products_currency_vnd",
+        "'INSERT INTO inventories (product_id, available_quantity) VALUES (999999, 1)', fk_inventories_product",
+        "'INSERT INTO inventories (product_id, available_quantity) VALUES (1, 1)', inventories_pkey"
+    })
+    void databaseConstraintsProtectProductAndInventoryInvariants(
+            String sql, String constraintName) {
+        assertThatThrownBy(() -> jdbcClient.sql(sql).update())
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining(constraintName);
+    }
+
     @Test
     void productRollsBackWhenInitialInventoryCannotBeCommitted() {
         doThrow(new IllegalStateException("simulated inventory persistence failure"))

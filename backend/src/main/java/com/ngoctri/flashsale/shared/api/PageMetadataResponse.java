@@ -1,4 +1,4 @@
-package com.ngoctri.flashsale.product.api;
+package com.ngoctri.flashsale.shared.api;
 
 public record PageMetadataResponse(
         int number,
