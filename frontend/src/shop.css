@@ -640,6 +640,7 @@ button[data-state="success"] {
   border: 0;
 }
 
+.order-filter-field,
 .order-filters label {
   display: grid;
   gap: var(--space-xs);

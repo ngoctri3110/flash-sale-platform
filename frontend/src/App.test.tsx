@@ -714,6 +714,62 @@ describe("App", () => {
     expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
   });
 
+  it("maps Order filter validation details back to the affected controls", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((input: string | URL | Request) => {
+        const url = input.toString();
+        if (url.endsWith("/actuator/health")) {
+          return Promise.resolve(jsonResponse({ status: "UP" }));
+        }
+        if (url.includes("/api/v1/orders")) {
+          return Promise.resolve(
+            jsonResponse(
+              {
+                code: "VALIDATION_FAILED",
+                detail: "One or more request parameters are invalid",
+                fieldErrors: [
+                  { field: "customerId", message: "must be a valid UUID" },
+                  {
+                    field: "createdTo",
+                    message: "must be later than createdFrom",
+                  },
+                ],
+              },
+              400,
+            ),
+          );
+        }
+        return Promise.resolve(
+          jsonResponse({
+            content: [],
+            page: { number: 0, size: 20, totalElements: 0, totalPages: 0 },
+          }),
+        );
+      }),
+    );
+
+    render(<App />);
+    await screen.findByText("No products are available for this sale yet.");
+    fireEvent.click(screen.getByRole("button", { name: "Admin" }));
+
+    const orderAlert = await screen.findByRole("alert");
+    expect(orderAlert).toHaveTextContent("VALIDATION_FAILED");
+    expect(orderAlert).toHaveTextContent(
+      "One or more request parameters are invalid",
+    );
+    expect(screen.getByLabelText("Order customer ID")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(screen.getByText("must be a valid UUID")).toBeInTheDocument();
+    expect(screen.getByLabelText("Orders created before")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(screen.getByText("must be later than createdFrom")).toBeInTheDocument();
+  });
+
   it("lets an administrator create a product and then see it in the Shop", async () => {
     const createdProduct = {
       id: 9,

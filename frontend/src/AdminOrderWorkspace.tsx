@@ -25,6 +25,12 @@ type OrderPage = {
   };
 };
 
+type ProblemDetail = {
+  code?: string;
+  detail?: string;
+  fieldErrors?: { field: string; message: string }[];
+};
+
 type OrderFilters = {
   productId: string;
   customerId: string;
@@ -54,28 +60,37 @@ export function AdminOrderWorkspace() {
   });
   const [draftFilters, setDraftFilters] = useState(emptyFilters);
   const [filters, setFilters] = useState(emptyFilters);
+  const [problem, setProblem] = useState<ProblemDetail | null>(null);
   const latestRequest = useRef(0);
 
   const loadOrders = useCallback(async () => {
     const requestId = ++latestRequest.current;
     setLoadState("loading");
-    const query = new URLSearchParams({
-      page: String(pageNumber),
-      size: "20",
-      sort: filters.sort,
-    });
-    if (filters.productId) query.set("productId", filters.productId);
-    if (filters.customerId) query.set("customerId", filters.customerId);
-    if (filters.createdFrom) {
-      query.set("createdFrom", new Date(filters.createdFrom).toISOString());
-    }
-    if (filters.createdTo) {
-      query.set("createdTo", new Date(filters.createdTo).toISOString());
-    }
+    setProblem(null);
 
     try {
+      const query = new URLSearchParams({
+        page: String(pageNumber),
+        size: "20",
+        sort: filters.sort,
+      });
+      if (filters.productId) query.set("productId", filters.productId);
+      if (filters.customerId) query.set("customerId", filters.customerId);
+      if (filters.createdFrom) {
+        query.set("createdFrom", new Date(filters.createdFrom).toISOString());
+      }
+      if (filters.createdTo) {
+        query.set("createdTo", new Date(filters.createdTo).toISOString());
+      }
+
       const response = await fetch(`${apiBaseUrl}/api/v1/orders?${query}`);
-      if (!response.ok) throw new Error("Order list request failed");
+      if (!response.ok) {
+        const loadedProblem = (await response.json()) as ProblemDetail;
+        if (requestId !== latestRequest.current) return;
+        setProblem(loadedProblem);
+        setLoadState("error");
+        return;
+      }
       const loaded = (await response.json()) as OrderPage;
       if (requestId !== latestRequest.current) return;
       setOrders(loaded.content);
@@ -83,6 +98,9 @@ export function AdminOrderWorkspace() {
       setLoadState("ready");
     } catch {
       if (requestId !== latestRequest.current) return;
+      setProblem({
+        detail: "The API is unavailable. Check the local backend and retry.",
+      });
       setLoadState("error");
     }
   }, [filters, pageNumber]);
@@ -96,6 +114,10 @@ export function AdminOrderWorkspace() {
     setPageNumber(0);
     setFilters(draftFilters);
   }
+
+  const fieldErrors = Object.fromEntries(
+    (problem?.fieldErrors ?? []).map((error) => [error.field, error.message]),
+  );
 
   return (
     <section className="order-browser" aria-labelledby="order-browser-title">
@@ -115,6 +137,7 @@ export function AdminOrderWorkspace() {
             type="number"
             min="1"
             value={draftFilters.productId}
+            error={fieldErrors.productId}
             onChange={(value) =>
               setDraftFilters((current) => ({ ...current, productId: value }))
             }
@@ -123,6 +146,7 @@ export function AdminOrderWorkspace() {
             id="order-customer-filter"
             label="Order customer ID"
             value={draftFilters.customerId}
+            error={fieldErrors.customerId}
             onChange={(value) =>
               setDraftFilters((current) => ({ ...current, customerId: value }))
             }
@@ -132,6 +156,7 @@ export function AdminOrderWorkspace() {
             label="Orders created from"
             type="datetime-local"
             value={draftFilters.createdFrom}
+            error={fieldErrors.createdFrom}
             onChange={(value) =>
               setDraftFilters((current) => ({ ...current, createdFrom: value }))
             }
@@ -141,6 +166,7 @@ export function AdminOrderWorkspace() {
             label="Orders created before"
             type="datetime-local"
             value={draftFilters.createdTo}
+            error={fieldErrors.createdTo}
             onChange={(value) =>
               setDraftFilters((current) => ({ ...current, createdTo: value }))
             }
@@ -170,7 +196,11 @@ export function AdminOrderWorkspace() {
       {loadState === "loading" && <p role="status">Loading Orders…</p>}
       {loadState === "error" && (
         <div className="order-browser-error" role="alert">
-          <p>Orders could not be loaded.</p>
+          <p>
+            {problem?.code && <strong>{problem.code}</strong>}
+            {problem?.code && problem?.detail && " · "}
+            {problem?.detail ?? "Orders could not be loaded."}
+          </p>
           <button type="button" onClick={() => void loadOrders()}>
             Retry Orders
           </button>
@@ -242,6 +272,7 @@ function FilterInput({
   onChange,
   type = "text",
   min,
+  error,
 }: {
   id: string;
   label: string;
@@ -249,18 +280,22 @@ function FilterInput({
   onChange: (value: string) => void;
   type?: string;
   min?: string;
+  error?: string;
 }) {
   return (
-    <label htmlFor={id}>
-      {label}
+    <div className="order-filter-field">
+      <label htmlFor={id}>{label}</label>
       <input
         id={id}
         type={type}
         min={min}
         value={value}
+        aria-invalid={Boolean(error)}
+        aria-describedby={`${id}-help`}
         onChange={(event) => onChange(event.target.value)}
       />
-    </label>
+      <small id={`${id}-help`}>{error ?? " "}</small>
+    </div>
   );
 }
 
