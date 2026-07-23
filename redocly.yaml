@@ -1,0 +1,6 @@
+extends:
+  - recommended
+
+rules:
+  # This learning MVP is intentionally local-only.
+  no-server-example.com: off
