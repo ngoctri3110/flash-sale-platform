@@ -57,6 +57,12 @@ cd backend
 The health endpoint is available at
 `http://localhost:8080/actuator/health`.
 
+After the Compose stack is ready, run the API smoke test:
+
+```powershell
+.\scripts\smoke-local.ps1
+```
+
 In another terminal, run the frontend:
 
 ```powershell
