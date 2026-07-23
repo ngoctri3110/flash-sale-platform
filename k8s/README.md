@@ -27,6 +27,21 @@ was accepted, Product browse returned five seeded products, Inventory changed
 from 18 to 17, and the Kafka consumer created one `order_event_audit` record.
 A backend rolling restart completed with `2/2` replicas Available. Run the
 existing Concurrency Lab separately against the port-forwarded backend for a
-machine-specific no-oversell load observation.
+machine-specific no-oversell load observation. The in-cluster 20-request run
+accepted 17 Orders, rejected 3 with insufficient inventory, and left available
+quantity at 0; no oversell occurred.
+
+```powershell
+kubectl -n flash-sale port-forward service/backend 18080:8080
+.\scripts\smoke-kubernetes-concurrency.ps1
+```
+
+Or run the in-cluster Job after deleting its prior completed run:
+
+```powershell
+kubectl -n flash-sale delete job concurrency-smoke --ignore-not-found
+kubectl apply -k k8s
+kubectl -n flash-sale logs -f job/concurrency-smoke
+```
 
 Teardown: `kubectl delete namespace flash-sale`.

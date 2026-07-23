@@ -3,3 +3,4 @@ resources:
   - supporting-services.yaml
   - backend.yaml
   - frontend.yaml
+  - concurrency-smoke.yaml

@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: concurrency-smoke-script, namespace: flash-sale }
+data:
+  run.sh: |
+    #!/bin/sh
+    body='{"customerId":"d97f2e84-3d38-4b2e-9828-56e641c98b88","productId":1,"quantity":1}'
+    for i in $(seq 1 20); do
+      (curl -s -o /dev/null -w '%{http_code}\n' -X POST http://backend:8080/api/v1/orders \
+        -H 'Content-Type: application/json' -H "Idempotency-Key: k8s-smoke-$i" -d "$body") &
+    done
+    wait
+---
+apiVersion: batch/v1
+kind: Job
+metadata: { name: concurrency-smoke, namespace: flash-sale }
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: curl
+          image: curlimages/curl:8.10.1
+          command: ["sh", "/scripts/run.sh"]
+          volumeMounts: [{ name: script, mountPath: /scripts }]
+      volumes:
+        - name: script
+          configMap: { name: concurrency-smoke-script, defaultMode: 493 }
