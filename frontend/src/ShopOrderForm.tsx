@@ -29,12 +29,14 @@ export function ShopOrderForm({ product }: { product: Product }) {
   const [quantity, setQuantity] = useState("1");
   const [requestState, setRequestState] = useState<RequestState>("idle");
   const [acceptedOrder, setAcceptedOrder] = useState<Order | null>(null);
+  const [wasReplay, setWasReplay] = useState(false);
   const [problem, setProblem] = useState<ProblemDetail | null>(null);
 
   async function placeOrder(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setRequestState("loading");
     setAcceptedOrder(null);
+    setWasReplay(false);
     setProblem(null);
 
     try {
@@ -58,6 +60,7 @@ export function ShopOrderForm({ product }: { product: Product }) {
       }
 
       setAcceptedOrder((await response.json()) as Order);
+      setWasReplay(response.status === 200);
       setRequestState("success");
     } catch {
       setProblem({
@@ -89,6 +92,7 @@ export function ShopOrderForm({ product }: { product: Product }) {
             setQuantity(event.target.value);
             setRequestState("idle");
             setAcceptedOrder(null);
+            setWasReplay(false);
             setProblem(null);
           }}
         />
@@ -114,9 +118,12 @@ export function ShopOrderForm({ product }: { product: Product }) {
         )}
         {requestState === "success" && acceptedOrder && (
           <div className="order-outcome order-outcome--success">
-            <strong role="status">Order #{acceptedOrder.id} accepted</strong>
+            <strong role="status">
+              Order #{acceptedOrder.id} {wasReplay ? "replayed" : "accepted"}
+            </strong>
             <span>
-              {acceptedOrder.quantity} × {formatMoney(acceptedOrder.unitPrice, acceptedOrder.currency)}
+              {acceptedOrder.quantity} ×{" "}
+              {formatMoney(acceptedOrder.unitPrice, acceptedOrder.currency)}
             </span>
           </div>
         )}
@@ -126,7 +133,11 @@ export function ShopOrderForm({ product }: { product: Product }) {
           aria-busy={requestState === "loading"}
           data-state={requestState}
         >
-          {requestState === "loading" ? "Placing order…" : "Place order"}
+          {requestState === "loading"
+            ? "Placing order…"
+            : requestState === "success"
+              ? "Replay same request"
+              : "Place order"}
         </button>
       </fieldset>
     </form>

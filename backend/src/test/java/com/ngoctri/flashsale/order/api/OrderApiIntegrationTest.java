@@ -104,6 +104,58 @@ class OrderApiIntegrationTest {
     }
 
     @Test
+    void identicalRequestCanBeReplayedWithoutAnotherInventoryDeduction() throws Exception {
+        var body = """
+                {
+                  "customerId": "%s",
+                  "productId": 1,
+                  "quantity": 2
+                }
+                """.formatted(CUSTOMER_ID);
+
+        var accepted = postOrder("replay-order-key", body);
+        var replayed = postOrder("replay-order-key", body);
+
+        assertThat(accepted.statusCode()).isEqualTo(201);
+        assertThat(replayed.statusCode()).isEqualTo(200);
+        assertThat(replayed.body()).isEqualTo(accepted.body());
+        assertThat(availableQuantity(1)).isEqualTo(16);
+        assertThat(orderCount()).isEqualTo(1);
+    }
+
+    @Test
+    void reusedKeyWithDifferentInputIsRejectedWithoutAnotherSideEffect() throws Exception {
+        var accepted = postOrder(
+                "conflicting-order-key",
+                """
+                {
+                  "customerId": "%s",
+                  "productId": 1,
+                  "quantity": 1
+                }
+                """.formatted(CUSTOMER_ID));
+        var conflicting = postOrder(
+                "conflicting-order-key",
+                """
+                {
+                  "customerId": "%s",
+                  "productId": 1,
+                  "quantity": 2
+                }
+                """.formatted(CUSTOMER_ID));
+
+        assertThat(accepted.statusCode()).isEqualTo(201);
+        assertThat(conflicting.statusCode()).isEqualTo(409);
+        assertThat(conflicting.headers().firstValue("Content-Type"))
+                .hasValueSatisfying(value -> assertThat(value).contains("application/problem+json"));
+        assertThat(conflicting.body())
+                .contains("\"code\":\"IDEMPOTENCY_KEY_REUSED\"")
+                .contains("\"instance\":\"/api/v1/orders\"");
+        assertThat(availableQuantity(1)).isEqualTo(17);
+        assertThat(orderCount()).isEqualTo(1);
+    }
+
+    @Test
     void insufficientInventoryRejectsTheAttemptWithoutAnySideEffect() throws Exception {
         jdbcClient.sql("UPDATE inventories SET available_quantity = 3 WHERE product_id = 1").update();
         var response = postOrder(
@@ -288,6 +340,44 @@ class OrderApiIntegrationTest {
 
         assertThat(availableQuantity(1)).isZero();
         assertThat(orderCount()).isEqualTo(10);
+    }
+
+    @Test
+    void concurrentDuplicateRequestsCreateOneOrderAndDeductInventoryOnce() throws Exception {
+        var body = """
+                {
+                  "customerId": "%s",
+                  "productId": 1,
+                  "quantity": 2
+                }
+                """.formatted(CUSTOMER_ID);
+        var ready = new CountDownLatch(2);
+        var start = new CountDownLatch(1);
+
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            var responses = java.util.stream.IntStream.range(0, 2)
+                    .mapToObj(index -> executor.submit(() -> {
+                        ready.countDown();
+                        start.await();
+                        return postOrder("concurrent-replay-key", body);
+                    }))
+                    .toList();
+
+            assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            var statusCodes = responses.stream().map(future -> {
+                try {
+                    return future.get(30, TimeUnit.SECONDS).statusCode();
+                } catch (Exception exception) {
+                    throw new AssertionError(exception);
+                }
+            }).toList();
+
+            assertThat(statusCodes).containsExactlyInAnyOrder(201, 200);
+        }
+
+        assertThat(availableQuantity(1)).isEqualTo(16);
+        assertThat(orderCount()).isEqualTo(1);
     }
 
     private HttpResponse<String> postOrder(String idempotencyKey, String body) throws Exception {

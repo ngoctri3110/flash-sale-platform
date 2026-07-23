@@ -25,7 +25,11 @@ class OrderController {
     ResponseEntity<OrderResponse> placeOrder(
             @RequestHeader("Idempotency-Key") @Size(min = 8, max = 128) String idempotencyKey,
             @Valid @RequestBody CreateOrderRequest request) {
-        var order = OrderResponse.from(placeOrder.place(request.toCommand(idempotencyKey)));
+        var result = placeOrder.place(request.toCommand(idempotencyKey));
+        var order = OrderResponse.from(result.order());
+        if (!result.created()) {
+            return ResponseEntity.ok(order);
+        }
         return ResponseEntity
                 .created(URI.create("/api/v1/orders/" + order.id()))
                 .body(order);

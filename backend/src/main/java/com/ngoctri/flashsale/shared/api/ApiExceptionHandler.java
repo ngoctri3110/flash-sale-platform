@@ -3,6 +3,7 @@ package com.ngoctri.flashsale.shared.api;
 import com.ngoctri.flashsale.inventory.application.InventoryNotFoundException;
 import com.ngoctri.flashsale.inventory.application.InventoryWouldBeNegativeException;
 import com.ngoctri.flashsale.inventory.application.UnsupportedInventorySortException;
+import com.ngoctri.flashsale.order.application.IdempotencyKeyReusedException;
 import com.ngoctri.flashsale.order.application.InsufficientInventoryException;
 import com.ngoctri.flashsale.order.application.ProductNotAvailableException;
 import com.ngoctri.flashsale.product.application.ProductNotFoundException;
@@ -79,6 +80,19 @@ class ApiExceptionHandler {
         problem.setTitle("Product not available");
         problem.setInstance(URI.create(request.getRequestURI()));
         problem.setProperty("code", "PRODUCT_NOT_AVAILABLE");
+        problem.setProperty("traceId", traceId(request));
+        return problem;
+    }
+
+    @ExceptionHandler(IdempotencyKeyReusedException.class)
+    ProblemDetail handleIdempotencyKeyReused(
+            IdempotencyKeyReusedException exception,
+            HttpServletRequest request) {
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
+        problem.setType(URI.create("https://flash-sale.local/problems/idempotency-key-reused"));
+        problem.setTitle("Idempotency key reused");
+        problem.setInstance(URI.create(request.getRequestURI()));
+        problem.setProperty("code", "IDEMPOTENCY_KEY_REUSED");
         problem.setProperty("traceId", traceId(request));
         return problem;
     }

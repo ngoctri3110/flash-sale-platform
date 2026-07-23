@@ -20,6 +20,48 @@ class JdbcOrderPlacementStore implements OrderPlacementStore {
     }
 
     @Override
+    public void lockIdempotencyKey(PlaceOrderCommand command) {
+        jdbcClient
+                .sql("""
+                        SELECT pg_advisory_xact_lock(
+                            hashtextextended(
+                                CAST(:customerId AS text) || ':' || :idempotencyKey,
+                                0
+                            )
+                        )
+                        """)
+                .param("customerId", command.customerId())
+                .param("idempotencyKey", command.idempotencyKey())
+                .query((resultSet, rowNumber) -> resultSet.getObject(1))
+                .single();
+    }
+
+    @Override
+    public Optional<OrderView> findOrderByCustomerAndIdempotencyKey(
+            PlaceOrderCommand command) {
+        return jdbcClient
+                .sql("""
+                        SELECT
+                            id,
+                            customer_id,
+                            product_id,
+                            product_name,
+                            quantity,
+                            unit_price,
+                            currency,
+                            total_amount,
+                            created_at
+                        FROM orders
+                        WHERE customer_id = :customerId
+                          AND idempotency_key = :idempotencyKey
+                        """)
+                .param("customerId", command.customerId())
+                .param("idempotencyKey", command.idempotencyKey())
+                .query(OrderView.class)
+                .optional();
+    }
+
+    @Override
     public Optional<OrderProductSnapshot> findProduct(long productId) {
         return jdbcClient
                 .sql("""

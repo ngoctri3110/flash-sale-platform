@@ -5,6 +5,11 @@ import java.util.Optional;
 
 public interface OrderPlacementStore {
 
+    void lockIdempotencyKey(PlaceOrderCommand command);
+
+    Optional<OrderView> findOrderByCustomerAndIdempotencyKey(
+            PlaceOrderCommand command);
+
     Optional<OrderProductSnapshot> findProduct(long productId);
 
     boolean decrementAvailableQuantity(long productId, int quantity);

@@ -15,7 +15,18 @@ public class PlaceOrder {
     }
 
     @Transactional
-    public OrderView place(PlaceOrderCommand command) {
+    public PlaceOrderResult place(PlaceOrderCommand command) {
+        store.lockIdempotencyKey(command);
+        var existingOrder = store.findOrderByCustomerAndIdempotencyKey(command);
+        if (existingOrder.isPresent()) {
+            var order = existingOrder.get();
+            if (order.productId() != command.productId()
+                    || order.quantity() != command.quantity()) {
+                throw new IdempotencyKeyReusedException();
+            }
+            return PlaceOrderResult.replayed(order);
+        }
+
         var product = store.findProduct(command.productId())
                 .orElseThrow(() -> new ProductNotFoundException(command.productId()));
         if (!product.active()) {
@@ -26,6 +37,6 @@ public class PlaceOrder {
         }
 
         var totalAmount = product.unitPrice().multiply(BigDecimal.valueOf(command.quantity()));
-        return store.insert(command, product, totalAmount);
+        return PlaceOrderResult.created(store.insert(command, product, totalAmount));
     }
 }

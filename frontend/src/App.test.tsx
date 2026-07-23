@@ -129,6 +129,75 @@ describe("App", () => {
     );
   });
 
+  it("lets a customer intentionally replay the same Order request", async () => {
+    const product = {
+      id: 1,
+      name: "Mechanical Keyboard",
+      description: "A compact keyboard built for long coding sessions.",
+      price: 2490000,
+      currency: "VND",
+      active: true,
+      createdAt: "2026-07-23T00:00:00Z",
+      updatedAt: "2026-07-23T00:00:00Z",
+    };
+    const acceptedOrder = {
+      id: 41,
+      customerId: "d97f2e84-3d38-4b2e-9828-56e641c98b88",
+      productId: 1,
+      productName: "Mechanical Keyboard",
+      quantity: 1,
+      unitPrice: 2490000,
+      currency: "VND",
+      totalAmount: 2490000,
+      createdAt: "2026-07-23T01:00:00Z",
+    };
+    let orderRequests = 0;
+    const fetchMock = vi.fn().mockImplementation(
+      (input: string | URL | Request, init?: RequestInit) => {
+        const url = input.toString();
+        if (url.endsWith("/actuator/health")) {
+          return Promise.resolve(jsonResponse({ status: "UP" }));
+        }
+        if (url.endsWith("/api/v1/orders") && init?.method === "POST") {
+          orderRequests += 1;
+          return Promise.resolve(
+            jsonResponse(acceptedOrder, orderRequests === 1 ? 201 : 200),
+          );
+        }
+        if (url.endsWith("/api/v1/products/1")) {
+          return Promise.resolve(jsonResponse(product));
+        }
+        return Promise.resolve(
+          jsonResponse({
+            content: [product],
+            page: { number: 0, size: 20, totalElements: 1, totalPages: 1 },
+          }),
+        );
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Mechanical Keyboard/ }),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Place order" }),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Replay same request" }),
+    );
+
+    expect(await screen.findByText("Order #41 replayed")).toBeInTheDocument();
+    const submittedOrders = fetchMock.mock.calls.filter(([input, init]) => {
+      return (
+        input.toString().endsWith("/api/v1/orders") && init?.method === "POST"
+      );
+    });
+    expect(submittedOrders).toHaveLength(2);
+    expect(submittedOrders[1]?.[1]).toEqual(submittedOrders[0]?.[1]);
+  });
+
   it("shows the RFC 9457 reason when an Order is rejected", async () => {
     const product = {
       id: 1,
