@@ -67,6 +67,8 @@ class OutboxPublisherIntegrationTest {
 
     @AfterEach
     void restoreSeedData() {
+        jdbcClient.sql("DELETE FROM order_event_audit").update();
+        jdbcClient.sql("DELETE FROM processed_events").update();
         jdbcClient.sql("DELETE FROM outbox_events").update();
         jdbcClient.sql("DELETE FROM orders").update();
         jdbcClient.sql("UPDATE inventories SET available_quantity = 18 WHERE product_id = 1").update();
