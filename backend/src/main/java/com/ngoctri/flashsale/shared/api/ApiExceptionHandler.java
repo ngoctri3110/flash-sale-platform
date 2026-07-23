@@ -1,8 +1,10 @@
 package com.ngoctri.flashsale.shared.api;
 
-import com.ngoctri.flashsale.inventory.application.UnsupportedInventorySortException;
 import com.ngoctri.flashsale.inventory.application.InventoryNotFoundException;
 import com.ngoctri.flashsale.inventory.application.InventoryWouldBeNegativeException;
+import com.ngoctri.flashsale.inventory.application.UnsupportedInventorySortException;
+import com.ngoctri.flashsale.order.application.InsufficientInventoryException;
+import com.ngoctri.flashsale.order.application.ProductNotAvailableException;
 import com.ngoctri.flashsale.product.application.ProductNotFoundException;
 import com.ngoctri.flashsale.product.application.UnsupportedProductSortException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,6 +17,7 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.method.ParameterErrors;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -51,15 +54,31 @@ class ApiExceptionHandler {
         return problem;
     }
 
-    @ExceptionHandler(InventoryWouldBeNegativeException.class)
-    ProblemDetail handleInventoryWouldBeNegative(
-            InventoryWouldBeNegativeException exception,
+    @ExceptionHandler({
+        InventoryWouldBeNegativeException.class,
+        InsufficientInventoryException.class
+    })
+    ProblemDetail handleInsufficientInventory(
+            RuntimeException exception,
             HttpServletRequest request) {
         var problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
         problem.setType(URI.create("https://flash-sale.local/problems/insufficient-stock"));
         problem.setTitle("Insufficient stock");
         problem.setInstance(URI.create(request.getRequestURI()));
         problem.setProperty("code", "INSUFFICIENT_STOCK");
+        problem.setProperty("traceId", traceId(request));
+        return problem;
+    }
+
+    @ExceptionHandler(ProductNotAvailableException.class)
+    ProblemDetail handleProductNotAvailable(
+            ProductNotAvailableException exception,
+            HttpServletRequest request) {
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
+        problem.setType(URI.create("https://flash-sale.local/problems/product-not-available"));
+        problem.setTitle("Product not available");
+        problem.setInstance(URI.create(request.getRequestURI()));
+        problem.setProperty("code", "PRODUCT_NOT_AVAILABLE");
         problem.setProperty("traceId", traceId(request));
         return problem;
     }
@@ -97,6 +116,17 @@ class ApiExceptionHandler {
 
         var problem = validationProblem(request);
         problem.setProperty("fieldErrors", fieldErrors);
+        return problem;
+    }
+
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    ProblemDetail handleMissingRequestHeader(
+            MissingRequestHeaderException exception,
+            HttpServletRequest request) {
+        var problem = validationProblem(request);
+        problem.setProperty(
+                "fieldErrors",
+                List.of(new FieldError(exception.getHeaderName(), "is required")));
         return problem;
     }
 

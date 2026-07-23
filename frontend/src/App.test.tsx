@@ -53,6 +53,142 @@ describe("App", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/products/1");
   });
 
+  it("lets a customer place an Order from the selected Product", async () => {
+    const product = {
+      id: 1,
+      name: "Mechanical Keyboard",
+      description: "A compact keyboard built for long coding sessions.",
+      price: 2490000,
+      currency: "VND",
+      active: true,
+      createdAt: "2026-07-23T00:00:00Z",
+      updatedAt: "2026-07-23T00:00:00Z",
+    };
+    const acceptedOrder = {
+      id: 41,
+      customerId: "d97f2e84-3d38-4b2e-9828-56e641c98b88",
+      productId: 1,
+      productName: "Mechanical Keyboard",
+      quantity: 2,
+      unitPrice: 2490000,
+      currency: "VND",
+      totalAmount: 4980000,
+      createdAt: "2026-07-23T01:00:00Z",
+    };
+    const fetchMock = vi.fn().mockImplementation(
+      (input: string | URL | Request, init?: RequestInit) => {
+        const url = input.toString();
+        if (url.endsWith("/actuator/health")) {
+          return Promise.resolve(jsonResponse({ status: "UP" }));
+        }
+        if (url.endsWith("/api/v1/orders") && init?.method === "POST") {
+          return Promise.resolve(jsonResponse(acceptedOrder, 201));
+        }
+        if (url.endsWith("/api/v1/products/1")) {
+          return Promise.resolve(jsonResponse(product));
+        }
+        return Promise.resolve(
+          jsonResponse({
+            content: [product],
+            page: { number: 0, size: 20, totalElements: 1, totalPages: 1 },
+          }),
+        );
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Mechanical Keyboard/ }),
+    );
+    const customerId = (await screen.findByLabelText("Customer ID") as HTMLInputElement)
+      .value;
+    const idempotencyKey = (screen.getByLabelText(
+      "Idempotency key",
+    ) as HTMLInputElement).value;
+    fireEvent.change(screen.getByLabelText("Quantity"), {
+      target: { value: "2" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Place order" }));
+
+    expect(await screen.findByText("Order #41 accepted")).toHaveAttribute(
+      "role",
+      "status",
+    );
+    expect(screen.getByText("2 × ₫2,490,000")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/orders",
+      expect.objectContaining({
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey,
+        },
+        body: JSON.stringify({ customerId, productId: 1, quantity: 2 }),
+      }),
+    );
+  });
+
+  it("shows the RFC 9457 reason when an Order is rejected", async () => {
+    const product = {
+      id: 1,
+      name: "Mechanical Keyboard",
+      description: "A compact keyboard built for long coding sessions.",
+      price: 2490000,
+      currency: "VND",
+      active: true,
+      createdAt: "2026-07-23T00:00:00Z",
+      updatedAt: "2026-07-23T00:00:00Z",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(
+        (input: string | URL | Request, init?: RequestInit) => {
+          const url = input.toString();
+          if (url.endsWith("/actuator/health")) {
+            return Promise.resolve(jsonResponse({ status: "UP" }));
+          }
+          if (url.endsWith("/api/v1/orders") && init?.method === "POST") {
+            return Promise.resolve(
+              jsonResponse(
+                {
+                  code: "INSUFFICIENT_STOCK",
+                  detail: "Product 1 has insufficient inventory for quantity 5",
+                },
+                409,
+              ),
+            );
+          }
+          if (url.endsWith("/api/v1/products/1")) {
+            return Promise.resolve(jsonResponse(product));
+          }
+          return Promise.resolve(
+            jsonResponse({
+              content: [product],
+              page: { number: 0, size: 20, totalElements: 1, totalPages: 1 },
+            }),
+          );
+        },
+      ),
+    );
+
+    render(<App />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Mechanical Keyboard/ }),
+    );
+    fireEvent.change(await screen.findByLabelText("Quantity"), {
+      target: { value: "5" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Place order" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("INSUFFICIENT_STOCK");
+    expect(alert).toHaveTextContent(
+      "Product 1 has insufficient inventory for quantity 5",
+    );
+    expect(screen.getByLabelText("Quantity")).toHaveValue(5);
+  });
+
   it("shows a loading state while the product catalogue is pending", () => {
     const fetchMock = vi.fn().mockImplementation((input: string | URL | Request) => {
       const url = input.toString();

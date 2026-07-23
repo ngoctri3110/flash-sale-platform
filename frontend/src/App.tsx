@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { AdminProductWorkspace } from "./AdminProductWorkspace";
+import { ShopOrderForm } from "./ShopOrderForm";
 import type { Product } from "./api-types";
 
 type HealthState = "checking" | "healthy" | "unavailable";
@@ -269,6 +270,12 @@ function App() {
                   </dd>
                 </div>
               </dl>
+              {selectedProduct.active && (
+                <ShopOrderForm
+                  key={selectedProduct.id}
+                  product={selectedProduct}
+                />
+              )}
             </>
           )}
           {detailState === "ready" && !selectedProduct && (
