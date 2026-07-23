@@ -5,3 +5,10 @@ spring:
     password: ${DB_PASSWORD:flashsale}
   flyway:
     locations: classpath:db/migration,classpath:db/local
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+app:
+  outbox:
+    publisher:
+      enabled: true

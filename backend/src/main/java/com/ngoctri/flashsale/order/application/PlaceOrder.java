@@ -9,9 +9,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class PlaceOrder {
 
     private final OrderPlacementStore store;
+    private final OrderCreatedOutbox orderCreatedOutbox;
 
-    public PlaceOrder(OrderPlacementStore store) {
+    public PlaceOrder(OrderPlacementStore store, OrderCreatedOutbox orderCreatedOutbox) {
         this.store = store;
+        this.orderCreatedOutbox = orderCreatedOutbox;
     }
 
     @Transactional
@@ -37,6 +39,8 @@ public class PlaceOrder {
         }
 
         var totalAmount = product.unitPrice().multiply(BigDecimal.valueOf(command.quantity()));
-        return PlaceOrderResult.created(store.insert(command, product, totalAmount));
+        var order = store.insert(command, product, totalAmount);
+        orderCreatedOutbox.append(order);
+        return PlaceOrderResult.created(order);
     }
 }

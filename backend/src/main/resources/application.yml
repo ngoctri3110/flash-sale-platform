@@ -21,3 +21,11 @@ management:
 
 server:
   shutdown: graceful
+
+app:
+  outbox:
+    publisher:
+      enabled: false
+      batch-size: 50
+      retry-delay: 5s
+      lease-duration: 30s

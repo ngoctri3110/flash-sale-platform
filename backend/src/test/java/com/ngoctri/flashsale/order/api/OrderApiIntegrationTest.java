@@ -54,6 +54,7 @@ class OrderApiIntegrationTest {
 
     @AfterEach
     void restoreSeedData() {
+        jdbcClient.sql("DELETE FROM outbox_events").update();
         jdbcClient.sql("DELETE FROM orders").update();
         jdbcClient.sql("UPDATE inventories SET available_quantity = 18 WHERE product_id = 1").update();
     }
@@ -247,6 +248,48 @@ class OrderApiIntegrationTest {
     }
 
     @Test
+    void acceptedOrderCommitsOneVersionedOrderCreatedOutboxEvent() throws Exception {
+        var response = postOrder(
+                "outbox-order-key-0001",
+                """
+                {
+                  "customerId": "%s",
+                  "productId": 1,
+                  "quantity": 2
+                }
+                """.formatted(CUSTOMER_ID));
+
+        assertThat(response.statusCode()).isEqualTo(201);
+        var order = objectMapper.readTree(response.body());
+        var event = jdbcClient
+                .sql("""
+                        SELECT id, event_type, event_version, occurred_at, payload::text
+                        FROM outbox_events
+                        """)
+                .query((resultSet, rowNumber) -> new OutboxEventRow(
+                        resultSet.getObject("id", UUID.class),
+                        resultSet.getString("event_type"),
+                        resultSet.getInt("event_version"),
+                        resultSet.getObject("occurred_at", OffsetDateTime.class).toInstant(),
+                        resultSet.getString("payload")))
+                .single();
+
+        assertThat(event.eventType()).isEqualTo("ORDER_CREATED");
+        assertThat(event.eventVersion()).isEqualTo(1);
+        assertThat(event.occurredAt()).isNotNull();
+        var payload = objectMapper.readTree(event.payload());
+        assertThat(payload.path("eventId").asString()).isEqualTo(event.id().toString());
+        assertThat(payload.path("eventType").asString()).isEqualTo("ORDER_CREATED");
+        assertThat(payload.path("eventVersion").asInt()).isEqualTo(1);
+        assertThat(payload.path("occurredAt").asString()).isNotBlank();
+        assertThat(payload.path("order").path("id").asLong()).isEqualTo(order.path("id").asLong());
+        assertThat(payload.path("order").path("customerId").asString()).isEqualTo(CUSTOMER_ID);
+        assertThat(payload.path("order").path("quantity").asInt()).isEqualTo(2);
+        assertThat(payload.path("order").path("totalAmount").decimalValue())
+                .isEqualByComparingTo("4980000.00");
+    }
+
+    @Test
     void identicalRequestCanBeReplayedWithoutAnotherInventoryDeduction() throws Exception {
         var body = """
                 {
@@ -264,6 +307,7 @@ class OrderApiIntegrationTest {
         assertThat(replayed.body()).isEqualTo(accepted.body());
         assertThat(availableQuantity(1)).isEqualTo(16);
         assertThat(orderCount()).isEqualTo(1);
+        assertThat(outboxEventCount()).isEqualTo(1);
     }
 
     @Test
@@ -296,6 +340,7 @@ class OrderApiIntegrationTest {
                 .contains("\"instance\":\"/api/v1/orders\"");
         assertThat(availableQuantity(1)).isEqualTo(17);
         assertThat(orderCount()).isEqualTo(1);
+        assertThat(outboxEventCount()).isEqualTo(1);
     }
 
     @Test
@@ -317,6 +362,7 @@ class OrderApiIntegrationTest {
         assertThat(response.body()).contains("\"code\":\"INSUFFICIENT_STOCK\"");
         assertThat(availableQuantity(1)).isEqualTo(3);
         assertThat(orderCount()).isZero();
+        assertThat(outboxEventCount()).isZero();
     }
 
     @Test
@@ -437,6 +483,7 @@ class OrderApiIntegrationTest {
             assertThat(response.body()).contains("\"code\":\"INTERNAL_ERROR\"");
             assertThat(availableQuantity(1)).isEqualTo(18);
             assertThat(orderCount()).isZero();
+            assertThat(outboxEventCount()).isZero();
         } finally {
             jdbcClient.sql("DROP TRIGGER IF EXISTS reject_order_insert ON orders").update();
             jdbcClient.sql("DROP FUNCTION IF EXISTS reject_order_insert()").update();
@@ -487,6 +534,7 @@ class OrderApiIntegrationTest {
 
         assertThat(availableQuantity(1)).isZero();
         assertThat(orderCount()).isEqualTo(10);
+        assertThat(outboxEventCount()).isEqualTo(10);
     }
 
     @Test
@@ -525,6 +573,7 @@ class OrderApiIntegrationTest {
 
         assertThat(availableQuantity(1)).isEqualTo(16);
         assertThat(orderCount()).isEqualTo(1);
+        assertThat(outboxEventCount()).isEqualTo(1);
     }
 
     private HttpResponse<String> postOrder(String idempotencyKey, String body) throws Exception {
@@ -597,5 +646,17 @@ class OrderApiIntegrationTest {
 
     private long orderCount() {
         return jdbcClient.sql("SELECT COUNT(*) FROM orders").query(Long.class).single();
+    }
+
+    private long outboxEventCount() {
+        return jdbcClient.sql("SELECT COUNT(*) FROM outbox_events").query(Long.class).single();
+    }
+
+    private record OutboxEventRow(
+            UUID id,
+            String eventType,
+            int eventVersion,
+            Instant occurredAt,
+            String payload) {
     }
 }

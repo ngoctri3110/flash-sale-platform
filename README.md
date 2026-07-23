@@ -38,10 +38,10 @@ The Maven Wrapper is included, so a separate Maven installation is optional.
 
 ## Run locally
 
-Start PostgreSQL:
+Start PostgreSQL and Kafka:
 
 ```powershell
-docker compose up -d postgres
+docker compose up -d postgres kafka
 ```
 
 In one terminal, run the backend with the local profile:
