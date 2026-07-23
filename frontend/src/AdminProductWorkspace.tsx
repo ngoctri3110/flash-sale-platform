@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { AdminInventoryWorkspace } from "./AdminInventoryWorkspace";
+import { AdminConcurrencyLab } from "./AdminConcurrencyLab";
 import { AdminOrderWorkspace } from "./AdminOrderWorkspace";
 import type { Product } from "./api-types";
 
@@ -423,6 +424,7 @@ export function AdminProductWorkspace({
       </section>
 
       <AdminInventoryWorkspace createdProduct={createdProduct} />
+      <AdminConcurrencyLab />
       <AdminOrderWorkspace />
     </main>
   );

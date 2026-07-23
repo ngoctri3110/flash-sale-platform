@@ -446,7 +446,7 @@ class OrderApiIntegrationTest {
     @Test
     void concurrentOrdersNeverOversellInventory() throws Exception {
         jdbcClient.sql("UPDATE inventories SET available_quantity = 10 WHERE product_id = 1").update();
-        var requestCount = 30;
+        var requestCount = 100;
         var ready = new CountDownLatch(requestCount);
         var start = new CountDownLatch(1);
 
@@ -469,16 +469,20 @@ class OrderApiIntegrationTest {
 
             assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
             start.countDown();
-            var statusCodes = responses.stream().map(future -> {
+            var completedResponses = responses.stream().map(future -> {
                 try {
-                    return future.get(30, TimeUnit.SECONDS).statusCode();
+                    return future.get(30, TimeUnit.SECONDS);
                 } catch (Exception exception) {
                     throw new AssertionError(exception);
                 }
             }).toList();
 
-            assertThat(statusCodes).filteredOn(status -> status == 201).hasSize(10);
-            assertThat(statusCodes).filteredOn(status -> status == 409).hasSize(20);
+            assertThat(completedResponses).filteredOn(response -> response.statusCode() == 201)
+                    .hasSize(10);
+            assertThat(completedResponses).filteredOn(response -> response.statusCode() == 409)
+                    .hasSize(90)
+                    .allSatisfy(response ->
+                            assertThat(response.body()).contains("\"code\":\"INSUFFICIENT_STOCK\""));
         }
 
         assertThat(availableQuantity(1)).isZero();

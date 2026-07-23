@@ -129,6 +129,164 @@ describe("App", () => {
     );
   });
 
+  it("runs a concurrent Order scenario and reports that Inventory was not oversold", async () => {
+    const product = {
+      id: 1,
+      name: "Mechanical Keyboard",
+      description: "A compact keyboard built for long coding sessions.",
+      price: 2490000,
+      currency: "VND",
+      active: true,
+      createdAt: "2026-07-23T00:00:00Z",
+      updatedAt: "2026-07-23T00:00:00Z",
+    };
+    let orderRequestCount = 0;
+    const fetchMock = vi.fn().mockImplementation(
+      (input: string | URL | Request, init?: RequestInit) => {
+        const url = input.toString();
+        if (url.endsWith("/actuator/health")) {
+          return Promise.resolve(jsonResponse({ status: "UP" }));
+        }
+        if (url.includes("/api/v1/orders") && init?.method === "POST") {
+          orderRequestCount += 1;
+          return Promise.resolve(
+            orderRequestCount === 1
+              ? jsonResponse({ id: 1 }, 201)
+              : jsonResponse({ code: "INSUFFICIENT_STOCK" }, 409),
+          );
+        }
+        if (url.includes("/api/v1/inventories")) {
+          return Promise.resolve(
+            jsonResponse({
+              content: [
+                {
+                  productId: 1,
+                  productName: product.name,
+                  availableQuantity: orderRequestCount === 0 ? 1 : 0,
+                  updatedAt: "2026-07-23T00:00:00Z",
+                },
+              ],
+              page: { number: 0, size: 100, totalElements: 1, totalPages: 1 },
+            }),
+          );
+        }
+        return Promise.resolve(
+          jsonResponse({
+            content: [product],
+            page: { number: 0, size: 20, totalElements: 1, totalPages: 1 },
+          }),
+        );
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    await screen.findByRole("button", { name: /Mechanical Keyboard/ });
+    fireEvent.click(screen.getByRole("button", { name: "Admin" }));
+    fireEvent.change(
+      await screen.findByRole("combobox", { name: "Concurrency product" }),
+      { target: { value: "1" } },
+    );
+    fireEvent.change(screen.getByLabelText("Concurrent requests"), {
+      target: { value: "2" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Run concurrency scenario" }));
+
+    expect(await screen.findByText("1 accepted")).toBeInTheDocument();
+    expect(screen.getByText("1 insufficient Inventory")).toBeInTheDocument();
+    expect(screen.getByText("Final Available Quantity: 0")).toBeInTheDocument();
+    expect(screen.getByText("Oversold: false")).toBeInTheDocument();
+
+    const requests = fetchMock.mock.calls.filter(
+      ([input, init]) => input.toString().includes("/api/v1/orders") && init?.method === "POST",
+    );
+    expect(requests).toHaveLength(2);
+    const customerIds = requests.map(([, init]) =>
+      JSON.parse((init as RequestInit).body as string).customerId,
+    );
+    const keys = requests.map(
+      ([, init]) => (init as RequestInit).headers as Record<string, string>,
+    );
+    expect(new Set(customerIds).size).toBe(2);
+    expect(new Set(keys.map((headers) => headers["Idempotency-Key"])).size).toBe(2);
+  });
+
+  it("replays one request identity without another Inventory deduction", async () => {
+    const product = {
+      id: 1,
+      name: "Mechanical Keyboard",
+      description: "A compact keyboard built for long coding sessions.",
+      price: 2490000,
+      currency: "VND",
+      active: true,
+      createdAt: "2026-07-23T00:00:00Z",
+      updatedAt: "2026-07-23T00:00:00Z",
+    };
+    let orderRequestCount = 0;
+    const fetchMock = vi.fn().mockImplementation(
+      (input: string | URL | Request, init?: RequestInit) => {
+        const url = input.toString();
+        if (url.endsWith("/actuator/health")) {
+          return Promise.resolve(jsonResponse({ status: "UP" }));
+        }
+        if (url.includes("/api/v1/orders") && init?.method === "POST") {
+          orderRequestCount += 1;
+          return Promise.resolve(jsonResponse({ id: 1 }, orderRequestCount === 1 ? 201 : 200));
+        }
+        if (url.includes("/api/v1/inventories")) {
+          return Promise.resolve(
+            jsonResponse({
+              content: [
+                {
+                  productId: 1,
+                  productName: product.name,
+                  availableQuantity: orderRequestCount === 0 ? 3 : 2,
+                  updatedAt: "2026-07-23T00:00:00Z",
+                },
+              ],
+              page: { number: 0, size: 100, totalElements: 1, totalPages: 1 },
+            }),
+          );
+        }
+        return Promise.resolve(
+          jsonResponse({
+            content: [product],
+            page: { number: 0, size: 20, totalElements: 1, totalPages: 1 },
+          }),
+        );
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    await screen.findByRole("button", { name: /Mechanical Keyboard/ });
+    fireEvent.click(screen.getByRole("button", { name: "Admin" }));
+    fireEvent.change(
+      await screen.findByRole("combobox", { name: "Concurrency product" }),
+      { target: { value: "1" } },
+    );
+    fireEvent.change(screen.getByLabelText("Concurrent requests"), {
+      target: { value: "3" },
+    });
+    fireEvent.click(screen.getByLabelText("Replay the same request identity"));
+    fireEvent.click(screen.getByRole("button", { name: "Run concurrency scenario" }));
+
+    expect(await screen.findByText("1 accepted")).toBeInTheDocument();
+    expect(screen.getByText("2 replayed")).toBeInTheDocument();
+    expect(screen.getByText("Final Available Quantity: 2")).toBeInTheDocument();
+    expect(screen.getByText("Oversold: false")).toBeInTheDocument();
+
+    const requests = fetchMock.mock.calls.filter(
+      ([input, init]) => input.toString().includes("/api/v1/orders") && init?.method === "POST",
+    );
+    expect(new Set(requests.map(([, init]) =>
+      JSON.parse((init as RequestInit).body as string).customerId,
+    )).size).toBe(1);
+    expect(new Set(requests.map(([, init]) =>
+      ((init as RequestInit).headers as Record<string, string>)["Idempotency-Key"],
+    )).size).toBe(1);
+  });
+
   it("lets a customer intentionally replay the same Order request", async () => {
     const product = {
       id: 1,

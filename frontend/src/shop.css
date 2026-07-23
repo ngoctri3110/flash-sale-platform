@@ -630,6 +630,88 @@ button[data-state="success"] {
   background: var(--color-paper);
 }
 
+.concurrency-lab {
+  grid-column: 1 / -1;
+  padding: var(--space-2xl);
+  border-top: var(--rule-thick) solid var(--color-ink);
+  background: var(--color-surface);
+}
+
+.concurrency-form fieldset {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto auto;
+  align-items: end;
+  gap: var(--space-sm);
+  margin: var(--space-xl) 0;
+  padding: 0;
+  border: 0;
+}
+
+.concurrency-form label {
+  display: grid;
+  gap: var(--space-xs);
+  color: var(--color-muted);
+  font: var(--text-xs) / 1.3 var(--font-mono);
+}
+
+.concurrency-form input,
+.concurrency-form select {
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0 var(--space-sm);
+  border: var(--rule-thin) solid var(--color-rule);
+  border-radius: var(--radius-sm);
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font: inherit;
+}
+
+.concurrency-form .concurrency-replay {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 2.75rem;
+}
+
+.concurrency-form .concurrency-replay input {
+  min-height: auto;
+  padding: 0;
+}
+
+.concurrency-form button,
+.concurrency-lab-error button {
+  min-height: 2.75rem;
+  padding: 0 var(--space-md);
+  border: var(--rule-thin) solid var(--color-ink);
+  border-radius: var(--radius-sm);
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font: var(--text-xs) / 1 var(--font-mono);
+  cursor: pointer;
+}
+
+.concurrency-result {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--space-sm);
+}
+
+.concurrency-result div {
+  padding: var(--space-md);
+  border: var(--rule-thin) solid var(--color-rule);
+  border-radius: var(--radius-sm);
+}
+
+.concurrency-result dt {
+  color: var(--color-muted);
+  font: var(--text-xs) / 1.3 var(--font-mono);
+}
+
+.concurrency-result dd {
+  margin: var(--space-xs) 0 0;
+  font: var(--text-sm) / 1.3 var(--font-mono);
+}
+
 .order-filters fieldset {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
@@ -1236,6 +1318,10 @@ h1 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .concurrency-form fieldset {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .catalogue {
     padding: var(--space-xl) var(--space-md);
     border-right: 0;
@@ -1284,6 +1370,10 @@ h1 {
   }
 
   .order-filters fieldset {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .concurrency-form fieldset {
     grid-template-columns: minmax(0, 1fr);
   }
 
