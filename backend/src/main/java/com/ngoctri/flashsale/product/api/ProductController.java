@@ -3,8 +3,6 @@ package com.ngoctri.flashsale.product.api;
 import com.ngoctri.flashsale.product.application.ProductCatalog;
 import com.ngoctri.flashsale.product.application.ProductSort;
 import com.ngoctri.flashsale.product.application.UnsupportedProductSortException;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,12 +21,15 @@ class ProductController {
 
     @GetMapping
     ProductPageResponse listProducts(
-            @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
+            @RequestParam(required = false) String page,
+            @RequestParam(required = false) String size,
             @RequestParam(required = false) String sort) {
         var requestedSort = sort == null ? "id,asc" : sort;
         return ProductPageResponse.from(
-                productCatalog.browse(page, size, parseSort(requestedSort)));
+                productCatalog.browse(
+                        parsePagingParameter("page", page, 0, 0, Integer.MAX_VALUE),
+                        parsePagingParameter("size", size, 20, 1, 100),
+                        parseSort(requestedSort)));
     }
 
     @GetMapping("/{productId}")
@@ -48,5 +49,31 @@ class ProductController {
             case "createdAt,desc" -> ProductSort.CREATED_AT_DESC;
             default -> throw new UnsupportedProductSortException(value);
         };
+    }
+
+    private static int parsePagingParameter(
+            String field,
+            String value,
+            int defaultValue,
+            int minimum,
+            int maximum) {
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value.isBlank()) {
+            throw new InvalidProductListParameterException(field, "must not be blank");
+        }
+
+        try {
+            var parsed = Integer.parseInt(value);
+            if (parsed < minimum || parsed > maximum) {
+                throw new InvalidProductListParameterException(
+                        field,
+                        "must be between " + minimum + " and " + maximum);
+            }
+            return parsed;
+        } catch (NumberFormatException exception) {
+            throw new InvalidProductListParameterException(field, "must be a valid integer");
+        }
     }
 }

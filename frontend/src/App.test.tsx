@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
@@ -210,6 +210,77 @@ describe("App", () => {
     });
     expect(productButton).toBeEnabled();
     expect(productButton).toHaveAttribute("data-state", "error");
+  });
+
+  it("keeps the latest product when detail requests resolve out of order", async () => {
+    const products = [
+      {
+        id: 1,
+        name: "Mechanical Keyboard",
+        description: "First product.",
+        price: 2490000,
+        currency: "VND",
+        active: true,
+        createdAt: "2026-07-23T00:00:00Z",
+        updatedAt: "2026-07-23T00:00:00Z",
+      },
+      {
+        id: 2,
+        name: "Portable SSD",
+        description: "Second product.",
+        price: 2190000,
+        currency: "VND",
+        active: true,
+        createdAt: "2026-07-23T00:00:00Z",
+        updatedAt: "2026-07-23T00:00:00Z",
+      },
+    ];
+    let resolveFirst!: (response: Response) => void;
+    let resolveSecond!: (response: Response) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((input: string | URL | Request) => {
+        const url = input.toString();
+        if (url.endsWith("/actuator/health")) {
+          return Promise.resolve(jsonResponse({ status: "UP" }));
+        }
+        if (url.endsWith("/api/v1/products/1")) {
+          return new Promise<Response>((resolve) => {
+            resolveFirst = resolve;
+          });
+        }
+        if (url.endsWith("/api/v1/products/2")) {
+          return new Promise<Response>((resolve) => {
+            resolveSecond = resolve;
+          });
+        }
+        return Promise.resolve(
+          jsonResponse({
+            content: products,
+            page: { number: 0, size: 20, totalElements: 2, totalPages: 1 },
+          }),
+        );
+      }),
+    );
+
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: /Mechanical Keyboard/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Portable SSD/ }));
+
+    resolveSecond(jsonResponse(products[1]));
+    expect(
+      await screen.findByRole("heading", { name: "Portable SSD" }),
+    ).toBeInTheDocument();
+
+    resolveFirst(jsonResponse(products[0]));
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { name: "Portable SSD" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("heading", { name: "Mechanical Keyboard" }),
+      ).not.toBeInTheDocument();
+    });
   });
 
   it("opens and filters the product finder from the keyboard", async () => {

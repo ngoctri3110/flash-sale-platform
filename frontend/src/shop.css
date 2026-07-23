@@ -432,13 +432,26 @@ h1 {
   width: 100%;
   min-height: 3rem;
   padding: 0 var(--space-sm);
-  border: 0;
+  border: var(--rule-thin) solid transparent;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--color-ink-2);
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.command-results button[data-state="loading"] {
+  color: var(--color-muted);
+}
+
+.command-results button[data-state="error"] {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.command-results button[data-state="success"] {
+  border-color: var(--color-positive);
 }
 
 .command-results button:hover,

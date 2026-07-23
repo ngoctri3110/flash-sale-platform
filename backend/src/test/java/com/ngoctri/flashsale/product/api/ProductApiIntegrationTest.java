@@ -123,7 +123,9 @@ class ProductApiIntegrationTest {
     @ParameterizedTest
     @CsvSource({
         "'/api/v1/products?page=-1', page",
-        "'/api/v1/products?size=0', size"
+        "'/api/v1/products?size=0', size",
+        "'/api/v1/products?page=', page",
+        "'/api/v1/products?size=', size"
     })
     void invalidPagingInputsAreRejected(String path, String field) throws Exception {
         assertValidationProblem(get(path), field);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type HealthState = "checking" | "healthy" | "unavailable";
 type LoadState = "loading" | "ready" | "error";
@@ -30,19 +30,28 @@ function App() {
   const [health, setHealth] = useState<HealthState>("checking");
   const [products, setProducts] = useState<Product[]>([]);
   const [listState, setListState] = useState<LoadState>("loading");
+  const [retryState, setRetryState] = useState<LoadState>("ready");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [detailState, setDetailState] = useState<LoadState>("ready");
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [productQuery, setProductQuery] = useState("");
   const [activeCommand, setActiveCommand] = useState(0);
+  const latestDetailRequest = useRef(0);
 
   const filteredProducts = products.filter((product) =>
     product.name.toLocaleLowerCase().includes(productQuery.toLocaleLowerCase()),
   );
 
-  async function loadProducts(isCurrent: () => boolean = () => true) {
-    setListState("loading");
+  async function loadProducts(
+    isCurrent: () => boolean = () => true,
+    isRetry = false,
+  ) {
+    if (isRetry) {
+      setRetryState("loading");
+    } else {
+      setListState("loading");
+    }
     try {
       const response = await fetch(`${apiBaseUrl}/api/v1/products`);
       if (!response.ok) throw new Error("Product list request failed");
@@ -50,9 +59,13 @@ function App() {
       if (isCurrent()) {
         setProducts(body.content);
         setListState("ready");
+        setRetryState("ready");
       }
     } catch {
-      if (isCurrent()) setListState("error");
+      if (isCurrent()) {
+        setListState("error");
+        setRetryState("error");
+      }
     }
   }
 
@@ -93,15 +106,20 @@ function App() {
   }, []);
 
   async function selectProduct(productId: number) {
+    const requestId = latestDetailRequest.current + 1;
+    latestDetailRequest.current = requestId;
     setSelectedProductId(productId);
     setDetailState("loading");
     setSelectedProduct(null);
     try {
       const response = await fetch(`${apiBaseUrl}/api/v1/products/${productId}`);
       if (!response.ok) throw new Error("Product detail request failed");
-      setSelectedProduct((await response.json()) as Product);
+      const product = (await response.json()) as Product;
+      if (latestDetailRequest.current !== requestId) return;
+      setSelectedProduct(product);
       setDetailState("ready");
     } catch {
+      if (latestDetailRequest.current !== requestId) return;
       setDetailState("error");
     }
   }
@@ -151,8 +169,14 @@ function App() {
           {listState === "error" && (
             <div className="error-state" role="alert" aria-label="Products unavailable">
               <p>The catalogue could not be loaded.</p>
-              <button type="button" onClick={() => void loadProducts()}>
-                Retry products
+              <button
+                type="button"
+                onClick={() => void loadProducts(() => true, true)}
+                disabled={retryState === "loading"}
+                aria-busy={retryState === "loading"}
+                data-state={retryState}
+              >
+                {retryState === "loading" ? "Retrying productsâ€¦" : "Retry products"}
               </button>
             </div>
           )}
@@ -285,6 +309,19 @@ function App() {
                   type="button"
                   onMouseEnter={() => setActiveCommand(index)}
                   onClick={() => runProductCommand(product.id)}
+                  disabled={
+                    selectedProductId === product.id && detailState === "loading"
+                  }
+                  aria-busy={
+                    selectedProductId === product.id && detailState === "loading"
+                  }
+                  data-state={
+                    selectedProductId !== product.id
+                      ? "idle"
+                      : detailState === "ready"
+                        ? "success"
+                        : detailState
+                  }
                 >
                   <span>{product.name}</span>
                   <span>{formatMoney(product)}</span>

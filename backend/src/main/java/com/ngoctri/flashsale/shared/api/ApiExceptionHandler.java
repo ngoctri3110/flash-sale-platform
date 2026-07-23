@@ -2,6 +2,7 @@ package com.ngoctri.flashsale.shared.api;
 
 import com.ngoctri.flashsale.product.application.ProductNotFoundException;
 import com.ngoctri.flashsale.product.application.UnsupportedProductSortException;
+import com.ngoctri.flashsale.product.api.InvalidProductListParameterException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
 import java.util.List;
@@ -54,6 +55,17 @@ class ApiExceptionHandler {
             HttpServletRequest request) {
         var problem = validationProblem(request);
         problem.setProperty("fieldErrors", List.of(new FieldError("sort", exception.getMessage())));
+        return problem;
+    }
+
+    @ExceptionHandler(InvalidProductListParameterException.class)
+    ProblemDetail handleInvalidProductListParameter(
+            InvalidProductListParameterException exception,
+            HttpServletRequest request) {
+        var problem = validationProblem(request);
+        problem.setProperty(
+                "fieldErrors",
+                List.of(new FieldError(exception.field(), exception.getMessage())));
         return problem;
     }
 
