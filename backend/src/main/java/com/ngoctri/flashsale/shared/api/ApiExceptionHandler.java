@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.method.ParameterErrors;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -68,10 +69,17 @@ class ApiExceptionHandler {
             HandlerMethodValidationException exception,
             HttpServletRequest request) {
         var fieldErrors = exception.getParameterValidationResults().stream()
-                .flatMap(result -> result.getResolvableErrors().stream()
-                        .map(error -> new FieldError(
-                                result.getMethodParameter().getParameterName(),
-                                error.getDefaultMessage())))
+                .flatMap(result -> {
+                    if (result instanceof ParameterErrors parameterErrors) {
+                        return parameterErrors.getFieldErrors().stream()
+                                .map(error -> new FieldError(
+                                        error.getField(), error.getDefaultMessage()));
+                    }
+                    return result.getResolvableErrors().stream()
+                            .map(error -> new FieldError(
+                                    result.getMethodParameter().getParameterName(),
+                                    error.getDefaultMessage()));
+                })
                 .toList();
 
         var problem = validationProblem(request);

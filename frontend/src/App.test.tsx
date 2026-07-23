@@ -418,7 +418,7 @@ describe("App", () => {
     expect(await screen.findByText(/Standing Desk committed/)).toBeInTheDocument();
     expect(await screen.findByText("25 available")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/v1/inventories?size=100&sort=productId,desc",
+      "/api/v1/inventories?size=100&page=0&sort=productId,desc",
     );
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/products",
@@ -784,6 +784,81 @@ describe("App", () => {
           reason: "Received supplier shipment",
         }),
       }),
+    );
+  });
+
+  it("loads every Inventory page so an administrator can adjust a later record", async () => {
+    const firstInventory = {
+      productId: 101,
+      productName: "Newest Product",
+      availableQuantity: 7,
+      updatedAt: "2026-07-23T00:00:00Z",
+    };
+    const laterInventory = {
+      productId: 1,
+      productName: "Oldest Product",
+      availableQuantity: 18,
+      updatedAt: "2026-07-23T00:00:00Z",
+    };
+    const fetchMock = vi.fn().mockImplementation(
+      (input: string | URL | Request, init?: RequestInit) => {
+        const url = input.toString();
+        if (url.endsWith("/actuator/health")) {
+          return Promise.resolve(jsonResponse({ status: "UP" }));
+        }
+        if (
+          url.endsWith("/api/v1/inventories/1/adjustments") &&
+          init?.method === "POST"
+        ) {
+          return Promise.resolve(
+            jsonResponse({ ...laterInventory, availableQuantity: 20 }),
+          );
+        }
+        if (url.includes("/api/v1/inventories?size=100&page=0")) {
+          return Promise.resolve(
+            jsonResponse({
+              content: [firstInventory],
+              page: { number: 0, size: 100, totalElements: 101, totalPages: 2 },
+            }),
+          );
+        }
+        if (url.includes("/api/v1/inventories?size=100&page=1")) {
+          return Promise.resolve(
+            jsonResponse({
+              content: [laterInventory],
+              page: { number: 1, size: 100, totalElements: 101, totalPages: 2 },
+            }),
+          );
+        }
+        return Promise.resolve(
+          jsonResponse({
+            content: [],
+            page: { number: 0, size: 20, totalElements: 0, totalPages: 0 },
+          }),
+        );
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    await screen.findByText("No products are available for this sale yet.");
+    fireEvent.click(screen.getByRole("button", { name: "Admin" }));
+    fireEvent.change(
+      await screen.findByRole("combobox", { name: "Inventory to adjust" }),
+      { target: { value: "1" } },
+    );
+    fireEvent.change(screen.getByLabelText("Quantity delta"), {
+      target: { value: "2" },
+    });
+    fireEvent.change(screen.getByLabelText("Adjustment reason"), {
+      target: { value: "Cycle count correction" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Apply adjustment" }));
+
+    expect(await screen.findByText("20 available")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/inventories/1/adjustments",
+      expect.objectContaining({ method: "POST" }),
     );
   });
 

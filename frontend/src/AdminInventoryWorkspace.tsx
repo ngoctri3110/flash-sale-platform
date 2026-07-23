@@ -19,6 +19,7 @@ type Inventory = {
 
 type InventoryPage = {
   content: Inventory[];
+  page?: { totalPages: number };
 };
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -42,13 +43,21 @@ export function AdminInventoryWorkspace({
     const requestId = ++latestInventoryRequest.current;
     setInventoryState("loading");
     try {
-      const response = await fetch(
-        `${apiBaseUrl}/api/v1/inventories?size=100&sort=productId,desc`,
-      );
-      if (!response.ok) throw new Error("Inventory request failed");
-      const page = (await response.json()) as InventoryPage;
-      if (requestId !== latestInventoryRequest.current) return;
-      setInventory(page.content);
+      const loaded = new Map<number, Inventory>();
+      let pageNumber = 0;
+      let totalPages = 1;
+      do {
+        const response = await fetch(
+          `${apiBaseUrl}/api/v1/inventories?size=100&page=${pageNumber}&sort=productId,desc`,
+        );
+        if (!response.ok) throw new Error("Inventory request failed");
+        const page = (await response.json()) as InventoryPage;
+        if (requestId !== latestInventoryRequest.current) return;
+        page.content.forEach((item) => loaded.set(item.productId, item));
+        totalPages = page.page?.totalPages ?? 1;
+        pageNumber += 1;
+      } while (pageNumber < totalPages);
+      setInventory([...loaded.values()]);
       setInventoryState("ready");
     } catch {
       if (requestId !== latestInventoryRequest.current) return;

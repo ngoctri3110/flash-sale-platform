@@ -13,6 +13,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -116,6 +117,21 @@ class InventoryApiIntegrationTest {
                 "reason");
     }
 
+    @ParameterizedTest
+    @ValueSource(longs = {0, -1})
+    void adjustmentRejectsProductIdsOutsideThePublicContract(long productId) throws Exception {
+        assertValidationProblem(
+                post(
+                        "/api/v1/inventories/" + productId + "/adjustments",
+                        """
+                        {
+                          "quantityDelta": 1,
+                          "reason": "Opening inventory"
+                        }
+                        """),
+                "productId");
+    }
+
     @Test
     void adjustmentCannotMakeAvailableQuantityNegative() throws Exception {
         var response = post(
@@ -194,6 +210,46 @@ class InventoryApiIntegrationTest {
 
         assertThat(availableQuantity(1)).isZero();
         assertThat(adjustmentCount(1)).isEqualTo(10);
+    }
+
+    @Test
+    void inventoryUpdateRollsBackWhenTheAuditRecordCannotBeWritten() throws Exception {
+        jdbcClient.sql("""
+                CREATE FUNCTION reject_inventory_adjustment()
+                RETURNS TRIGGER
+                LANGUAGE plpgsql
+                AS $$
+                BEGIN
+                    RAISE EXCEPTION 'audit unavailable';
+                END;
+                $$
+                """).update();
+        jdbcClient.sql("""
+                CREATE TRIGGER reject_inventory_adjustment
+                BEFORE INSERT ON inventory_adjustments
+                FOR EACH ROW
+                EXECUTE FUNCTION reject_inventory_adjustment()
+                """).update();
+
+        try {
+            var response = post(
+                    "/api/v1/inventories/1/adjustments",
+                    """
+                    {
+                      "quantityDelta": 7,
+                      "reason": "Received supplier shipment"
+                    }
+                    """);
+
+            assertThat(response.statusCode()).isEqualTo(500);
+            assertThat(availableQuantity(1)).isEqualTo(18);
+            assertThat(adjustmentCount(1)).isZero();
+        } finally {
+            jdbcClient
+                    .sql("DROP TRIGGER IF EXISTS reject_inventory_adjustment ON inventory_adjustments")
+                    .update();
+            jdbcClient.sql("DROP FUNCTION IF EXISTS reject_inventory_adjustment()").update();
+        }
     }
 
     @Test
