@@ -51,4 +51,16 @@ class ArchitectureRulesTest {
                 .allowEmptyShould(true)
                 .check(APPLICATION_CLASSES);
     }
+
+    @Test
+    void infrastructureMustNotDependOnDelivery() {
+        noClasses()
+                .that()
+                .resideInAPackage("..infrastructure..")
+                .should()
+                .dependOnClassesThat()
+                .resideInAPackage("..api..")
+                .allowEmptyShould(true)
+                .check(APPLICATION_CLASSES);
+    }
 }

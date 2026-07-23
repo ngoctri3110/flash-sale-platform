@@ -38,6 +38,8 @@ paths:
                 $ref: "#/components/schemas/ProductPage"
         "400":
           $ref: "#/components/responses/ValidationProblem"
+        "500":
+          $ref: "#/components/responses/InternalProblem"
         default:
           $ref: "#/components/responses/Problem"
     post:
@@ -65,6 +67,8 @@ paths:
                 $ref: "#/components/schemas/Product"
         "400":
           $ref: "#/components/responses/ValidationProblem"
+        "500":
+          $ref: "#/components/responses/InternalProblem"
         default:
           $ref: "#/components/responses/Problem"
   /api/v1/products/{productId}:
@@ -83,6 +87,8 @@ paths:
                 $ref: "#/components/schemas/Product"
         "404":
           $ref: "#/components/responses/NotFoundProblem"
+        "500":
+          $ref: "#/components/responses/InternalProblem"
         default:
           $ref: "#/components/responses/Problem"
     patch:
@@ -106,6 +112,8 @@ paths:
           $ref: "#/components/responses/ValidationProblem"
         "404":
           $ref: "#/components/responses/NotFoundProblem"
+        "500":
+          $ref: "#/components/responses/InternalProblem"
         default:
           $ref: "#/components/responses/Problem"
   /api/v1/inventories:
@@ -126,6 +134,8 @@ paths:
                 $ref: "#/components/schemas/InventoryPage"
         "400":
           $ref: "#/components/responses/ValidationProblem"
+        "500":
+          $ref: "#/components/responses/InternalProblem"
         default:
           $ref: "#/components/responses/Problem"
   /api/v1/inventories/{productId}/adjustments:
@@ -155,6 +165,8 @@ paths:
           $ref: "#/components/responses/NotFoundProblem"
         "409":
           $ref: "#/components/responses/ConflictProblem"
+        "500":
+          $ref: "#/components/responses/InternalProblem"
         default:
           $ref: "#/components/responses/Problem"
   /api/v1/orders:
@@ -174,6 +186,12 @@ paths:
             schema:
               $ref: "#/components/schemas/CreateOrderRequest"
       responses:
+        "200":
+          description: Existing Order returned for an identical idempotent replay.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
         "201":
           description: Order accepted.
           headers:
@@ -192,6 +210,8 @@ paths:
           $ref: "#/components/responses/NotFoundProblem"
         "409":
           $ref: "#/components/responses/ConflictProblem"
+        "500":
+          $ref: "#/components/responses/InternalProblem"
         default:
           $ref: "#/components/responses/Problem"
     get:
@@ -202,6 +222,10 @@ paths:
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
         - $ref: "#/components/parameters/OrderSort"
+        - $ref: "#/components/parameters/OrderProductId"
+        - $ref: "#/components/parameters/OrderCustomerId"
+        - $ref: "#/components/parameters/CreatedFrom"
+        - $ref: "#/components/parameters/CreatedTo"
       responses:
         "200":
           description: A page of orders.
@@ -211,6 +235,8 @@ paths:
                 $ref: "#/components/schemas/OrderPage"
         "400":
           $ref: "#/components/responses/ValidationProblem"
+        "500":
+          $ref: "#/components/responses/InternalProblem"
         default:
           $ref: "#/components/responses/Problem"
 components:
@@ -256,7 +282,15 @@ components:
       description: Allowlisted sort expression; ID is always the stable tie-breaker.
       schema:
         type: string
-        enum: ["id,asc", "id,desc", "name,asc", "name,desc", "price,asc", "price,desc"]
+        enum:
+          - "id,asc"
+          - "id,desc"
+          - "name,asc"
+          - "name,desc"
+          - "price,asc"
+          - "price,desc"
+          - "createdAt,asc"
+          - "createdAt,desc"
         default: "id,asc"
     InventorySort:
       name: sort
@@ -267,6 +301,8 @@ components:
         enum:
           - "productId,asc"
           - "productId,desc"
+          - "productName,asc"
+          - "productName,desc"
           - "availableQuantity,asc"
           - "availableQuantity,desc"
         default: "productId,asc"
@@ -278,6 +314,37 @@ components:
         type: string
         enum: ["id,asc", "id,desc", "createdAt,asc", "createdAt,desc"]
         default: "createdAt,desc"
+    OrderProductId:
+      name: productId
+      in: query
+      description: Return only orders for this Product.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    OrderCustomerId:
+      name: customerId
+      in: query
+      description: Return only orders placed by this Customer.
+      schema:
+        type: string
+        format: uuid
+    CreatedFrom:
+      name: createdFrom
+      in: query
+      description: Inclusive lower bound for Order creation time.
+      schema:
+        type: string
+        format: date-time
+    CreatedTo:
+      name: createdTo
+      in: query
+      description: |
+        Exclusive upper bound for Order creation time. When both bounds are
+        supplied, this value must be later than `createdFrom`.
+      schema:
+        type: string
+        format: date-time
   responses:
     Problem:
       description: Request failed.
@@ -305,6 +372,12 @@ components:
         application/problem+json:
           schema:
             $ref: "#/components/schemas/Problem"
+    InternalProblem:
+      description: Unexpected failure with code `INTERNAL_ERROR`; internal details are omitted.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/InternalProblem"
   schemas:
     Product:
       type: object
@@ -315,8 +388,10 @@ components:
           format: int64
         name:
           type: string
+          description: Leading and trailing whitespace is removed before validation.
           minLength: 1
           maxLength: 120
+          pattern: '^\S(?:.*\S)?$'
         description:
           type: [string, "null"]
           maxLength: 1000
@@ -342,8 +417,10 @@ components:
       properties:
         name:
           type: string
+          description: Must not contain leading or trailing whitespace.
           minLength: 1
           maxLength: 120
+          pattern: '^\S(?:.*\S)?$'
         description:
           type: string
           maxLength: 1000
@@ -362,8 +439,10 @@ components:
       properties:
         name:
           type: string
+          description: Must not contain leading or trailing whitespace.
           minLength: 1
           maxLength: 120
+          pattern: '^\S(?:.*\S)?$'
         description:
           type: [string, "null"]
           maxLength: 1000
@@ -535,6 +614,14 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/FieldError"
+    InternalProblem:
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - type: object
+          properties:
+            code:
+              type: string
+              const: INTERNAL_ERROR
     FieldError:
       type: object
       required: [field, message]
