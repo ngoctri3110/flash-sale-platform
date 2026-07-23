@@ -38,13 +38,16 @@ The Maven Wrapper is included, so a separate Maven installation is optional.
 
 ## Run locally
 
-Start PostgreSQL and Kafka:
+Start the complete local demo:
 
 ```powershell
-docker compose up -d postgres kafka
+docker compose up --build
 ```
 
-In one terminal, run the backend with the local profile:
+The Shop/Admin frontend is available at `http://localhost:5173`; backend health is
+available at `http://localhost:8080/actuator/health/readiness`.
+
+For development without containers, run the backend with the local profile:
 
 ```powershell
 cd backend
