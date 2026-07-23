@@ -7,6 +7,9 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -53,6 +56,146 @@ class OrderApiIntegrationTest {
     void restoreSeedData() {
         jdbcClient.sql("DELETE FROM orders").update();
         jdbcClient.sql("UPDATE inventories SET available_quantity = 18 WHERE product_id = 1").update();
+    }
+
+    @Test
+    void administratorCanBrowseAcceptedOrdersNewestFirst() throws Exception {
+        insertOrder(
+                UUID.fromString(CUSTOMER_ID),
+                1,
+                "Mechanical Keyboard",
+                1,
+                new BigDecimal("2490000.00"),
+                "browse-key-0001",
+                Instant.parse("2026-07-23T01:00:00Z"));
+        var newestId = insertOrder(
+                UUID.fromString(CUSTOMER_ID),
+                2,
+                "Noise-Cancelling Headphones",
+                2,
+                new BigDecimal("8990000.00"),
+                "browse-key-0002",
+                Instant.parse("2026-07-23T02:00:00Z"));
+
+        var response = getOrders("");
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.headers().firstValue("Content-Type"))
+                .hasValueSatisfying(value -> assertThat(value).contains("application/json"));
+        JsonNode page = objectMapper.readTree(response.body());
+        assertThat(page.path("page").path("number").asInt()).isZero();
+        assertThat(page.path("page").path("size").asInt()).isEqualTo(20);
+        assertThat(page.path("page").path("totalElements").asLong()).isEqualTo(2);
+        assertThat(page.path("page").path("totalPages").asInt()).isEqualTo(1);
+        assertThat(page.path("content").size()).isEqualTo(2);
+        var newest = page.path("content").get(0);
+        assertThat(newest.path("id").asLong()).isEqualTo(newestId);
+        assertThat(newest.path("customerId").asString()).isEqualTo(CUSTOMER_ID);
+        assertThat(newest.path("productId").asLong()).isEqualTo(2);
+        assertThat(newest.path("productName").asString())
+                .isEqualTo("Noise-Cancelling Headphones");
+        assertThat(newest.path("quantity").asInt()).isEqualTo(2);
+        assertThat(newest.path("unitPrice").decimalValue())
+                .isEqualByComparingTo("8990000.00");
+        assertThat(newest.path("currency").asString()).isEqualTo("VND");
+        assertThat(newest.path("totalAmount").decimalValue())
+                .isEqualByComparingTo("17980000.00");
+        assertThat(newest.path("createdAt").asString()).isEqualTo("2026-07-23T02:00:00Z");
+    }
+
+    @Test
+    void administratorCanCombineProductCustomerAndTimeRangeFilters() throws Exception {
+        var targetCustomer = UUID.fromString("c440eb9d-71a8-4435-8648-45b5696f9ec6");
+        insertOrder(
+                UUID.fromString(CUSTOMER_ID),
+                1,
+                "Mechanical Keyboard",
+                1,
+                new BigDecimal("2490000.00"),
+                "filter-key-0001",
+                Instant.parse("2026-07-23T01:00:00Z"));
+        var matchingId = insertOrder(
+                targetCustomer,
+                2,
+                "Noise-Cancelling Headphones",
+                1,
+                new BigDecimal("8990000.00"),
+                "filter-key-0002",
+                Instant.parse("2026-07-23T02:00:00Z"));
+        insertOrder(
+                targetCustomer,
+                2,
+                "Noise-Cancelling Headphones",
+                1,
+                new BigDecimal("8990000.00"),
+                "filter-key-0003",
+                Instant.parse("2026-07-23T03:00:00Z"));
+
+        var response = getOrders(
+                "?productId=2"
+                        + "&customerId=" + targetCustomer
+                        + "&createdFrom=2026-07-23T02:00:00Z"
+                        + "&createdTo=2026-07-23T03:00:00Z");
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        JsonNode page = objectMapper.readTree(response.body());
+        assertThat(page.path("page").path("totalElements").asLong()).isEqualTo(1);
+        assertThat(page.path("content").size()).isEqualTo(1);
+        assertThat(page.path("content").get(0).path("id").asLong()).isEqualTo(matchingId);
+    }
+
+    @Test
+    void orderPaginationUsesIdAsTheStableTieBreaker() throws Exception {
+        var createdAt = Instant.parse("2026-07-23T02:00:00Z");
+        var olderId = insertOrder(
+                UUID.fromString(CUSTOMER_ID),
+                1,
+                "Mechanical Keyboard",
+                1,
+                new BigDecimal("2490000.00"),
+                "stable-key-0001",
+                createdAt);
+        var newerId = insertOrder(
+                UUID.fromString(CUSTOMER_ID),
+                2,
+                "Noise-Cancelling Headphones",
+                1,
+                new BigDecimal("8990000.00"),
+                "stable-key-0002",
+                createdAt);
+
+        var firstPage = objectMapper.readTree(
+                getOrders("?page=0&size=1&sort=createdAt,desc").body());
+        var secondPage = objectMapper.readTree(
+                getOrders("?page=1&size=1&sort=createdAt,desc").body());
+
+        assertThat(firstPage.path("content").get(0).path("id").asLong()).isEqualTo(newerId);
+        assertThat(secondPage.path("content").get(0).path("id").asLong()).isEqualTo(olderId);
+        assertThat(secondPage.path("page").path("number").asInt()).isEqualTo(1);
+        assertThat(secondPage.path("page").path("size").asInt()).isEqualTo(1);
+        assertThat(secondPage.path("page").path("totalPages").asInt()).isEqualTo(2);
+    }
+
+    @ParameterizedTest
+    @CsvSource(
+            delimiter = '|',
+            textBlock = """
+                    ?page=-1 | page
+                    ?size=0 | size
+                    ?size=101 | size
+                    ?sort=productId,asc | sort
+                    ?productId=0 | productId
+                    ?productId= | productId
+                    ?customerId=not-a-uuid | customerId
+                    ?customerId= | customerId
+                    ?createdFrom=not-a-date | createdFrom
+                    ?createdFrom= | createdFrom
+                    ?createdTo=not-a-date | createdTo
+                    ?createdFrom=2026-07-23T03:00:00Z&createdTo=2026-07-23T03:00:00Z | createdTo
+                    """)
+    void invalidOrderListParametersUseStableFieldErrors(String query, String field)
+            throws Exception {
+        assertValidationProblem(getOrders(query.trim()), field.trim());
     }
 
     @Test
@@ -389,6 +532,46 @@ class OrderApiIntegrationTest {
             request.header("Idempotency-Key", idempotencyKey);
         }
         return httpClient.send(request.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    private HttpResponse<String> getOrders(String query) throws Exception {
+        var request = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + "/api/v1/orders" + query))
+                .GET()
+                .build();
+        return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    private long insertOrder(
+            UUID customerId,
+            long productId,
+            String productName,
+            int quantity,
+            BigDecimal unitPrice,
+            String idempotencyKey,
+            Instant createdAt) {
+        return jdbcClient
+                .sql("""
+                        INSERT INTO orders (
+                            customer_id, product_id, product_name, quantity,
+                            unit_price, currency, total_amount, idempotency_key, created_at
+                        )
+                        VALUES (
+                            :customerId, :productId, :productName, :quantity,
+                            :unitPrice, 'VND', :totalAmount, :idempotencyKey, :createdAt
+                        )
+                        RETURNING id
+                        """)
+                .param("customerId", customerId)
+                .param("productId", productId)
+                .param("productName", productName)
+                .param("quantity", quantity)
+                .param("unitPrice", unitPrice)
+                .param("totalAmount", unitPrice.multiply(BigDecimal.valueOf(quantity)))
+                .param("idempotencyKey", idempotencyKey)
+                .param("createdAt", OffsetDateTime.ofInstant(createdAt, ZoneOffset.UTC))
+                .query(Long.class)
+                .single();
     }
 
     private long availableQuantity(long productId) {

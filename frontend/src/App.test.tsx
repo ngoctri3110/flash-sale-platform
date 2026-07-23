@@ -628,6 +628,92 @@ describe("App", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("lets an administrator filter and paginate accepted Orders", async () => {
+    const customerId = "c440eb9d-71a8-4435-8648-45b5696f9ec6";
+    const order = (id: number) => ({
+      id,
+      customerId,
+      productId: 2,
+      productName: "Noise-Cancelling Headphones",
+      quantity: 2,
+      unitPrice: 8990000,
+      currency: "VND",
+      totalAmount: 17980000,
+      createdAt: "2026-07-23T02:00:00Z",
+    });
+    const fetchMock = vi.fn().mockImplementation((input: string | URL | Request) => {
+      const url = input.toString();
+      if (url.endsWith("/actuator/health")) {
+        return Promise.resolve(jsonResponse({ status: "UP" }));
+      }
+      if (url.includes("/api/v1/orders")) {
+        const pageNumber = new URL(url, "http://local").searchParams.get("page");
+        return Promise.resolve(
+          jsonResponse({
+            content: [order(pageNumber === "1" ? 90 : 91)],
+            page: {
+              number: Number(pageNumber ?? 0),
+              size: 20,
+              totalElements: 2,
+              totalPages: 2,
+            },
+          }),
+        );
+      }
+      if (url.includes("/api/v1/inventories")) {
+        return Promise.resolve(
+          jsonResponse({
+            content: [],
+            page: { number: 0, size: 100, totalElements: 0, totalPages: 0 },
+          }),
+        );
+      }
+      return Promise.resolve(
+        jsonResponse({
+          content: [],
+          page: { number: 0, size: 20, totalElements: 0, totalPages: 0 },
+        }),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    await screen.findByText("No products are available for this sale yet.");
+    fireEvent.click(screen.getByRole("button", { name: "Admin" }));
+
+    expect(await screen.findByText("Order #91")).toBeInTheDocument();
+    expect(screen.getByText("Noise-Cancelling Headphones")).toBeInTheDocument();
+    expect(screen.getByText("2 × ₫8,990,000")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Order product ID"), {
+      target: { value: "2" },
+    });
+    fireEvent.change(screen.getByLabelText("Order customer ID"), {
+      target: { value: customerId },
+    });
+    fireEvent.change(screen.getByLabelText("Orders created from"), {
+      target: { value: "2026-07-23T01:00" },
+    });
+    fireEvent.change(screen.getByLabelText("Orders created before"), {
+      target: { value: "2026-07-24T00:00" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Apply order filters" }));
+
+    await waitFor(() => {
+      const orderCalls = fetchMock.mock.calls.filter(([input]) =>
+        input.toString().includes("/api/v1/orders"),
+      );
+      const requestUrl = new URL(orderCalls.at(-1)?.[0].toString() ?? "", "http://local");
+      expect(requestUrl.searchParams.get("productId")).toBe("2");
+      expect(requestUrl.searchParams.get("customerId")).toBe(customerId);
+      expect(requestUrl.searchParams.get("createdFrom")).toBeTruthy();
+      expect(requestUrl.searchParams.get("createdTo")).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Next orders page" }));
+    expect(await screen.findByText("Order #90")).toBeInTheDocument();
+    expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
+  });
+
   it("lets an administrator create a product and then see it in the Shop", async () => {
     const createdProduct = {
       id: 9,

@@ -6,6 +6,7 @@ import com.ngoctri.flashsale.inventory.application.UnsupportedInventorySortExcep
 import com.ngoctri.flashsale.order.application.IdempotencyKeyReusedException;
 import com.ngoctri.flashsale.order.application.InsufficientInventoryException;
 import com.ngoctri.flashsale.order.application.ProductNotAvailableException;
+import com.ngoctri.flashsale.order.application.UnsupportedOrderSortException;
 import com.ngoctri.flashsale.product.application.ProductNotFoundException;
 import com.ngoctri.flashsale.product.application.UnsupportedProductSortException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -167,6 +168,15 @@ class ApiExceptionHandler {
     @ExceptionHandler(UnsupportedInventorySortException.class)
     ProblemDetail handleUnsupportedInventorySort(
             UnsupportedInventorySortException exception,
+            HttpServletRequest request) {
+        var problem = validationProblem(request);
+        problem.setProperty("fieldErrors", List.of(new FieldError("sort", exception.getMessage())));
+        return problem;
+    }
+
+    @ExceptionHandler(UnsupportedOrderSortException.class)
+    ProblemDetail handleUnsupportedOrderSort(
+            UnsupportedOrderSortException exception,
             HttpServletRequest request) {
         var problem = validationProblem(request);
         problem.setProperty("fieldErrors", List.of(new FieldError("sort", exception.getMessage())));

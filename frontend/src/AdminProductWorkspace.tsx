@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { AdminInventoryWorkspace } from "./AdminInventoryWorkspace";
+import { AdminOrderWorkspace } from "./AdminOrderWorkspace";
 import type { Product } from "./api-types";
 
 type CreationState = "idle" | "loading" | "error" | "success";
@@ -422,6 +423,7 @@ export function AdminProductWorkspace({
       </section>
 
       <AdminInventoryWorkspace createdProduct={createdProduct} />
+      <AdminOrderWorkspace />
     </main>
   );
 }
