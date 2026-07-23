@@ -1,19 +1,25 @@
 package com.ngoctri.flashsale.product.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.ngoctri.flashsale.product.application.CreateProductCommand;
+import com.ngoctri.flashsale.product.application.ProductCreator;
+import java.math.BigDecimal;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.context.annotation.Import;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -41,6 +47,113 @@ class ProductApiIntegrationTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private JdbcClient jdbcClient;
+
+    @Autowired
+    private ProductCreator productCreator;
+
+    @AfterEach
+    void removeProductsCreatedByTests() {
+        jdbcClient.sql("DELETE FROM inventories WHERE product_id > 5").update();
+        jdbcClient.sql("DELETE FROM products WHERE id > 5").update();
+    }
+
+    @Test
+    void administratorCanCreateProductWithInitialInventoryAtomically() throws Exception {
+        var response = post(
+                "/api/v1/products",
+                """
+                {
+                  "name": "Standing Desk",
+                  "description": "A height-adjustable desk for focused work.",
+                  "price": 15990000.00,
+                  "active": true,
+                  "initialInventory": 25
+                }
+                """);
+
+        assertThat(response.statusCode()).isEqualTo(201);
+        assertThat(response.headers().firstValue("Location")).isPresent();
+
+        JsonNode created = objectMapper.readTree(response.body());
+        assertThat(created.path("name").asString()).isEqualTo("Standing Desk");
+        assertThat(created.path("description").asString())
+                .isEqualTo("A height-adjustable desk for focused work.");
+        assertThat(created.path("price").decimalValue()).isEqualByComparingTo("15990000.00");
+        assertThat(created.path("currency").asString()).isEqualTo("VND");
+        assertThat(created.path("active").asBoolean()).isTrue();
+
+        var productId = created.path("id").asLong();
+        assertThat(response.headers().firstValue("Location"))
+                .contains("/api/v1/products/" + productId);
+        assertThat(get("/api/v1/products/" + productId).statusCode()).isEqualTo(200);
+        assertThat(jdbcClient
+                        .sql("SELECT available_quantity FROM inventories WHERE product_id = ?")
+                        .param(productId)
+                        .query(Long.class)
+                        .single())
+                .isEqualTo(25);
+    }
+
+    @Test
+    void invalidProductCreationReturnsStableFieldErrors() throws Exception {
+        var response = post(
+                "/api/v1/products",
+                """
+                {
+                  "name": " Standing Desk ",
+                  "description": "Invalid product",
+                  "price": 159.999,
+                  "initialInventory": 1000001
+                }
+                """);
+
+        assertValidationProblem(response, "name");
+        var fieldErrors = objectMapper.readTree(response.body()).path("fieldErrors").toString();
+        assertThat(fieldErrors)
+                .contains("\"field\":\"price\"")
+                .contains("\"field\":\"active\"")
+                .contains("\"field\":\"initialInventory\"");
+    }
+
+    @Test
+    void unknownProductCreationFieldReturnsValidationProblem() throws Exception {
+        var response = post(
+                "/api/v1/products",
+                """
+                {
+                  "name": "Standing Desk",
+                  "price": 15990000,
+                  "active": true,
+                  "initialInventory": 25,
+                  "currency": "USD"
+                }
+                """);
+
+        assertValidationProblem(response, "request");
+    }
+
+    @Test
+    void productRollsBackWhenInitialInventoryCannotBeCommitted() {
+        var command = new CreateProductCommand(
+                "Rollback Proof",
+                "Must not survive a failed Inventory insert.",
+                new BigDecimal("100000.00"),
+                true,
+                1_000_001);
+
+        assertThatThrownBy(() -> productCreator.create(command))
+                .isInstanceOf(RuntimeException.class);
+
+        assertThat(jdbcClient
+                        .sql("SELECT COUNT(*) FROM products WHERE name = ?")
+                        .param(command.name())
+                        .query(Long.class)
+                        .single())
+                .isZero();
+    }
 
     @Test
     void customerCanBrowseSeededActiveProducts() throws Exception {
@@ -195,6 +308,16 @@ class ProductApiIntegrationTest {
         var request = HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:" + port + path))
                 .GET()
+                .build();
+
+        return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    private HttpResponse<String> post(String path, String body) throws Exception {
+        var request = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + path))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
 
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString());

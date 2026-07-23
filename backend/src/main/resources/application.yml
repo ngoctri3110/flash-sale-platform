@@ -1,6 +1,9 @@
 spring:
   application:
     name: flash-sale-backend
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
   jpa:
     hibernate:
       ddl-auto: validate

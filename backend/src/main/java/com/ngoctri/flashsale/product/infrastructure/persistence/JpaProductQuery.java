@@ -1,22 +1,28 @@
 package com.ngoctri.flashsale.product.infrastructure.persistence;
 
+import com.ngoctri.flashsale.product.application.CreateProductCommand;
 import com.ngoctri.flashsale.product.application.ProductPage;
 import com.ngoctri.flashsale.product.application.ProductPageQuery;
 import com.ngoctri.flashsale.product.application.ProductQuery;
 import com.ngoctri.flashsale.product.application.ProductSort;
+import com.ngoctri.flashsale.product.application.ProductStore;
 import com.ngoctri.flashsale.product.application.ProductView;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.Optional;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 
 @Repository
-class JpaProductQuery implements ProductQuery {
+class JpaProductQuery implements ProductQuery, ProductStore {
 
     private final ProductJpaRepository repository;
+    private final Clock clock;
 
     JpaProductQuery(ProductJpaRepository repository) {
         this.repository = repository;
+        this.clock = Clock.systemUTC();
     }
 
     @Override
@@ -41,6 +47,18 @@ class JpaProductQuery implements ProductQuery {
     @Override
     public Optional<ProductView> findById(long productId) {
         return repository.findById(productId).map(JpaProductQuery::toView);
+    }
+
+    @Override
+    public ProductView create(CreateProductCommand command) {
+        var now = Instant.now(clock);
+        var product = ProductEntity.create(
+                command.name(),
+                command.description(),
+                command.price(),
+                command.active(),
+                now);
+        return toView(repository.save(product));
     }
 
     private static Sort.Order toOrder(ProductSort sort) {

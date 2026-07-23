@@ -10,10 +10,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
-import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
-import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 @RestControllerAdvice
 class ApiExceptionHandler {
@@ -46,6 +48,30 @@ class ApiExceptionHandler {
 
         var problem = validationProblem(request);
         problem.setProperty("fieldErrors", fieldErrors);
+        return problem;
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    ProblemDetail handleRequestBodyValidation(
+            MethodArgumentNotValidException exception,
+            HttpServletRequest request) {
+        var fieldErrors = exception.getBindingResult().getFieldErrors().stream()
+                .map(error -> new FieldError(error.getField(), error.getDefaultMessage()))
+                .toList();
+
+        var problem = validationProblem(request);
+        problem.setProperty("fieldErrors", fieldErrors);
+        return problem;
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    ProblemDetail handleUnreadableRequestBody(
+            HttpMessageNotReadableException exception,
+            HttpServletRequest request) {
+        var problem = validationProblem(request);
+        problem.setProperty(
+                "fieldErrors",
+                List.of(new FieldError("request", "must match the documented JSON schema")));
         return problem;
     }
 

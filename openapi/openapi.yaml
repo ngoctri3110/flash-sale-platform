@@ -413,7 +413,7 @@ components:
     CreateProductRequest:
       type: object
       additionalProperties: false
-      required: [name, price, initialInventory]
+      required: [name, price, active, initialInventory]
       properties:
         name:
           type: string
@@ -428,6 +428,8 @@ components:
           type: number
           multipleOf: 0.01
           exclusiveMinimum: 0
+        active:
+          type: boolean
         initialInventory:
           type: integer
           minimum: 0

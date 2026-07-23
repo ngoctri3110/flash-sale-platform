@@ -342,6 +342,137 @@ describe("App", () => {
       screen.queryByRole("dialog", { name: "Product finder" }),
     ).not.toBeInTheDocument();
   });
+
+  it("lets an administrator create a product and then see it in the Shop", async () => {
+    const createdProduct = {
+      id: 9,
+      name: "Standing Desk",
+      description: "A height-adjustable desk.",
+      price: 15990000,
+      currency: "VND",
+      active: true,
+      createdAt: "2026-07-23T00:00:00Z",
+      updatedAt: "2026-07-23T00:00:00Z",
+    };
+    const fetchMock = vi.fn().mockImplementation(
+      (input: string | URL | Request, init?: RequestInit) => {
+        const url = input.toString();
+        if (url.endsWith("/actuator/health")) {
+          return Promise.resolve(jsonResponse({ status: "UP" }));
+        }
+        if (url.endsWith("/api/v1/products") && init?.method === "POST") {
+          return Promise.resolve(jsonResponse(createdProduct, 201));
+        }
+        return Promise.resolve(
+          jsonResponse({
+            content: [],
+            page: { number: 0, size: 20, totalElements: 0, totalPages: 0 },
+          }),
+        );
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    await screen.findByText("No products are available for this sale yet.");
+    fireEvent.click(screen.getByRole("button", { name: "Admin" }));
+
+    fireEvent.change(screen.getByLabelText("Product name"), {
+      target: { value: "Standing Desk" },
+    });
+    fireEvent.change(screen.getByLabelText("Description"), {
+      target: { value: "A height-adjustable desk." },
+    });
+    fireEvent.change(screen.getByLabelText("Price (VND)"), {
+      target: { value: "15990000" },
+    });
+    fireEvent.change(screen.getByLabelText("Initial inventory"), {
+      target: { value: "25" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create product" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Standing Desk created with 25 available",
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/products",
+      expect.objectContaining({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Standing Desk",
+          description: "A height-adjustable desk.",
+          price: 15990000,
+          active: true,
+          initialInventory: 25,
+        }),
+      }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Shop" }));
+    expect(
+      screen.getByRole("button", { name: /Standing Desk/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("maps product creation problem details back to the Admin form", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(
+        (input: string | URL | Request, init?: RequestInit) => {
+          const url = input.toString();
+          if (url.endsWith("/actuator/health")) {
+            return Promise.resolve(jsonResponse({ status: "UP" }));
+          }
+          if (url.endsWith("/api/v1/products") && init?.method === "POST") {
+            return Promise.resolve(
+              jsonResponse(
+                {
+                  detail: "One or more request parameters are invalid",
+                  fieldErrors: [
+                    {
+                      field: "name",
+                      message: "must not have leading or trailing whitespace",
+                    },
+                  ],
+                },
+                400,
+              ),
+            );
+          }
+          return Promise.resolve(
+            jsonResponse({
+              content: [],
+              page: { number: 0, size: 20, totalElements: 0, totalPages: 0 },
+            }),
+          );
+        },
+      ),
+    );
+
+    render(<App />);
+    await screen.findByText("No products are available for this sale yet.");
+    fireEvent.click(screen.getByRole("button", { name: "Admin" }));
+
+    const name = screen.getByLabelText("Product name");
+    fireEvent.change(name, { target: { value: " Standing Desk " } });
+    fireEvent.change(screen.getByLabelText("Price (VND)"), {
+      target: { value: "15990000" },
+    });
+    fireEvent.change(screen.getByLabelText("Initial inventory"), {
+      target: { value: "25" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create product" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "One or more request parameters are invalid",
+    );
+    expect(name).toHaveAttribute("aria-invalid", "true");
+    expect(name).toHaveAttribute("data-state", "error");
+    expect(
+      screen.getByText("must not have leading or trailing whitespace"),
+    ).toBeInTheDocument();
+  });
 });
 
 function jsonResponse(body: unknown, status = 200) {

@@ -41,6 +41,23 @@ class ProductEntity {
 
     protected ProductEntity() {}
 
+    static ProductEntity create(
+            String name,
+            String description,
+            BigDecimal price,
+            boolean active,
+            Instant now) {
+        var product = new ProductEntity();
+        product.name = name;
+        product.description = description;
+        product.price = price;
+        product.currency = "VND";
+        product.active = active;
+        product.createdAt = now;
+        product.updatedAt = now;
+        return product;
+    }
+
     Long getId() {
         return id;
     }
