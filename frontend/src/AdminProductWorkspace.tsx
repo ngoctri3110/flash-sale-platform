@@ -21,6 +21,11 @@ type InventoryPage = {
   content: Inventory[];
 };
 
+type ProductPage = {
+  content: Product[];
+  page?: { totalPages: number };
+};
+
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export function AdminProductWorkspace({
@@ -44,9 +49,11 @@ export function AdminProductWorkspace({
   const [editDescription, setEditDescription] = useState("");
   const [editPrice, setEditPrice] = useState("");
   const [editActive, setEditActive] = useState(false);
+  const [editableProducts, setEditableProducts] = useState(products);
   const [inventory, setInventory] = useState<Inventory[]>([]);
   const [inventoryState, setInventoryState] = useState<LoadState>("loading");
   const latestInventoryRequest = useRef(0);
+  const latestEditRequest = useRef(0);
 
   const loadInventory = useCallback(async () => {
     const requestId = ++latestInventoryRequest.current;
@@ -69,6 +76,37 @@ export function AdminProductWorkspace({
   useEffect(() => {
     void loadInventory();
   }, [loadInventory]);
+
+  useEffect(() => {
+    let current = true;
+    setEditableProducts(products);
+
+    async function loadAllProducts() {
+      try {
+        const loaded: Product[] = [];
+        let pageNumber = 0;
+        let totalPages = 1;
+        do {
+          const response = await fetch(
+            `${apiBaseUrl}/api/v1/products?size=100&page=${pageNumber}&sort=id,asc`,
+          );
+          if (!response.ok) throw new Error("Product request failed");
+          const page = (await response.json()) as ProductPage;
+          loaded.push(...page.content);
+          totalPages = page.page?.totalPages ?? 1;
+          pageNumber += 1;
+        } while (pageNumber < totalPages);
+        if (current) setEditableProducts(loaded);
+      } catch {
+        // The Shop page remains a useful fallback if the Admin query is unavailable.
+      }
+    }
+
+    void loadAllProducts();
+    return () => {
+      current = false;
+    };
+  }, [products]);
 
   async function createProduct(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -117,11 +155,14 @@ export function AdminProductWorkspace({
   }
 
   function selectProductForEdit(productId: string) {
+    latestEditRequest.current += 1;
     setSelectedEditId(productId);
     setEditState("idle");
     setEditErrors({});
     setEditMessage("");
-    const product = products.find((candidate) => candidate.id === Number(productId));
+    const product = editableProducts.find(
+      (candidate) => candidate.id === Number(productId),
+    );
     if (!product) return;
     setEditName(product.name);
     setEditDescription(product.description ?? "");
@@ -131,7 +172,7 @@ export function AdminProductWorkspace({
 
   async function updateProduct(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const original = products.find(
+    const original = editableProducts.find(
       (candidate) => candidate.id === Number(selectedEditId),
     );
     if (!original) return;
@@ -153,6 +194,7 @@ export function AdminProductWorkspace({
     setEditState("loading");
     setEditErrors({});
     setEditMessage("");
+    const requestId = ++latestEditRequest.current;
     try {
       const response = await fetch(
         `${apiBaseUrl}/api/v1/products/${original.id}`,
@@ -162,6 +204,7 @@ export function AdminProductWorkspace({
           body: JSON.stringify(payload),
         },
       );
+      if (requestId !== latestEditRequest.current) return;
       if (!response.ok) {
         const problem = (await response.json()) as ProblemDetail;
         setEditErrors(
@@ -175,6 +218,12 @@ export function AdminProductWorkspace({
       }
 
       const product = (await response.json()) as Product;
+      if (requestId !== latestEditRequest.current) return;
+      setEditableProducts((current) =>
+        current.map((candidate) =>
+          candidate.id === product.id ? product : candidate,
+        ),
+      );
       setEditName(product.name);
       setEditDescription(product.description ?? "");
       setEditPrice(String(product.price));
@@ -183,6 +232,7 @@ export function AdminProductWorkspace({
       setEditState("success");
       onUpdated(product);
     } catch {
+      if (requestId !== latestEditRequest.current) return;
       setEditMessage("The API is unavailable. Check the local backend and retry.");
       setEditState("error");
     }
@@ -206,10 +256,11 @@ export function AdminProductWorkspace({
             <select
               id="edit-product"
               value={selectedEditId}
+              disabled={editState === "loading"}
               onChange={(event) => selectProductForEdit(event.target.value)}
             >
               <option value="">Choose a Product</option>
-              {products.map((product) => (
+              {editableProducts.map((product) => (
                 <option key={product.id} value={product.id}>
                   #{product.id} · {product.name}
                 </option>

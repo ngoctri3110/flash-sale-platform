@@ -240,6 +240,23 @@ button[data-state="success"] {
   font: var(--text-md) / 1.4 var(--font-body);
 }
 
+.product-picker select:hover {
+  border-color: var(--color-accent);
+}
+
+.product-picker select:focus-visible {
+  border-color: var(--color-ink-2);
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.product-picker select:disabled {
+  background: var(--color-surface);
+  color: var(--color-muted);
+  cursor: progress;
+  opacity: 0.72;
+}
+
 .product-editor .product-form {
   margin-top: var(--space-xl);
 }

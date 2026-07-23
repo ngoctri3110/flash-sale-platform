@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
@@ -574,6 +574,147 @@ describe("App", () => {
       "true",
     );
     expect(screen.getByText("must not be blank")).toBeInTheDocument();
+  });
+
+  it("does not let an older detail response overwrite an accepted Admin update", async () => {
+    const product = {
+      id: 2,
+      name: "Portable SSD",
+      description: "Fast storage.",
+      price: 2190000,
+      currency: "VND",
+      active: true,
+      createdAt: "2026-07-23T00:00:00Z",
+      updatedAt: "2026-07-23T00:00:00Z",
+    };
+    const updatedProduct = {
+      ...product,
+      name: "Portable SSD Pro",
+      updatedAt: "2026-07-23T01:00:00Z",
+    };
+    let resolveOldDetail!: (response: Response) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(
+        (input: string | URL | Request, init?: RequestInit) => {
+          const url = input.toString();
+          if (url.endsWith("/actuator/health")) {
+            return Promise.resolve(jsonResponse({ status: "UP" }));
+          }
+          if (url.endsWith("/api/v1/products/2") && init?.method === "PATCH") {
+            return Promise.resolve(jsonResponse(updatedProduct));
+          }
+          if (url.endsWith("/api/v1/products/2")) {
+            return new Promise<Response>((resolve) => {
+              resolveOldDetail = resolve;
+            });
+          }
+          if (url.includes("/api/v1/inventories")) {
+            return Promise.resolve(jsonResponse({ content: [] }));
+          }
+          return Promise.resolve(
+            jsonResponse({
+              content: [product],
+              page: { number: 0, size: 20, totalElements: 1, totalPages: 1 },
+            }),
+          );
+        },
+      ),
+    );
+
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: /Portable SSD/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Admin" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Edit product" }), {
+      target: { value: "2" },
+    });
+    fireEvent.change(screen.getByLabelText("Edit product name"), {
+      target: { value: "Portable SSD Pro" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await screen.findByText(/Portable SSD Pro updated/);
+    fireEvent.click(screen.getByRole("button", { name: "Shop" }));
+
+    expect(
+      screen.getByRole("heading", { name: "Portable SSD Pro" }),
+    ).toBeInTheDocument();
+    await act(async () => {
+      resolveOldDetail(jsonResponse(product));
+    });
+    expect(
+      screen.getByRole("heading", { name: "Portable SSD Pro" }),
+    ).toBeInTheDocument();
+  });
+
+  it("loads every Admin product page and locks selection during an update", async () => {
+    const firstProduct = {
+      id: 1,
+      name: "First Product",
+      description: null,
+      price: 1000,
+      currency: "VND",
+      active: true,
+      createdAt: "2026-07-23T00:00:00Z",
+      updatedAt: "2026-07-23T00:00:00Z",
+    };
+    const laterProduct = {
+      ...firstProduct,
+      id: 101,
+      name: "Later Product",
+      active: false,
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(
+        (input: string | URL | Request, init?: RequestInit) => {
+          const url = input.toString();
+          if (url.endsWith("/actuator/health")) {
+            return Promise.resolve(jsonResponse({ status: "UP" }));
+          }
+          if (url.endsWith("/api/v1/products/101") && init?.method === "PATCH") {
+            return new Promise<Response>(() => undefined);
+          }
+          if (url.includes("/api/v1/inventories")) {
+            return Promise.resolve(jsonResponse({ content: [] }));
+          }
+          if (url.includes("/api/v1/products?size=100&page=1")) {
+            return Promise.resolve(
+              jsonResponse({
+                content: [laterProduct],
+                page: { number: 1, size: 100, totalElements: 101, totalPages: 2 },
+              }),
+            );
+          }
+          if (url.includes("/api/v1/products?size=100&page=0")) {
+            return Promise.resolve(
+              jsonResponse({
+                content: [firstProduct],
+                page: { number: 0, size: 100, totalElements: 101, totalPages: 2 },
+              }),
+            );
+          }
+          return Promise.resolve(
+            jsonResponse({
+              content: [firstProduct],
+              page: { number: 0, size: 20, totalElements: 101, totalPages: 6 },
+            }),
+          );
+        },
+      ),
+    );
+
+    render(<App />);
+    await screen.findByRole("button", { name: /First Product/ });
+    fireEvent.click(screen.getByRole("button", { name: "Admin" }));
+    const selector = screen.getByRole("combobox", { name: "Edit product" });
+    await screen.findByRole("option", { name: /Later Product/ });
+    fireEvent.change(selector, { target: { value: "101" } });
+    fireEvent.change(screen.getByLabelText("Edit product name"), {
+      target: { value: "Later Product Revised" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    expect(selector).toBeDisabled();
   });
 
   it("locks the submitted form while product creation is pending", async () => {

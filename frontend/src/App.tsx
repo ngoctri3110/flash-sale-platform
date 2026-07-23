@@ -286,6 +286,7 @@ function App() {
             );
           }}
           onUpdated={(product) => {
+            latestDetailRequest.current += 1;
             setProducts((current) =>
               current.map((candidate) =>
                 candidate.id === product.id ? product : candidate,
@@ -293,6 +294,7 @@ function App() {
             );
             if (selectedProductId === product.id) {
               setSelectedProduct(product);
+              setDetailState("ready");
             }
           }}
         />
