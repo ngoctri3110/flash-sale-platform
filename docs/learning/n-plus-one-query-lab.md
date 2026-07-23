@@ -2,36 +2,56 @@
 
 ## Controlled scenario
 
-Load 20 `OrderEntity` records and then read each lazy `product` association. The
-initial select plus one product select per distinct product is N+1. Enable
-`org.hibernate.SQL=DEBUG` only in a lab profile and count JDBC statements; do
-not assert generated SQL strings in regression tests.
+`NPlusOneQueryLabIntegrationTest` inserts four orders that refer to four distinct
+products, then loads a test-only JPA mapping of the existing `orders` table. It
+uses Hibernate `Statistics#getPrepareStatementCount`, not generated SQL text.
+This proves database work without becoming coupled to a Hibernate SQL formatting
+detail.
+
+Run the lab from `backend`:
+
+```powershell
+.\mvnw.cmd -Dtest=NPlusOneQueryLabIntegrationTest test
+```
+
+The lazy scenario deliberately executes more than two statements: one for the
+orders and one per distinct lazy product. The other scenarios have bounded
+statement budgets. The fixture clears the persistence context and statistics
+before every observation, so first-level-cache hits cannot hide the problem.
 
 ## Equivalent strategies
 
 | Strategy | Statements | Pagination | Risk / use it when |
 | --- | --- | --- | --- |
 | Lazy loop (N+1) | 1 + N | works, slow | Demonstration only. |
-| `join fetch` | usually 1 | unsafe for to-many joins | A bounded detail graph; avoid collection fetch joins with pages. |
-| `@EntityGraph` | usually 1 | same collection caveat | Repository method needs a named, readable graph. |
-| `default_batch_fetch_size` | 1 + ceil(N/batch) | works | Existing lazy model, several to-one associations. |
-| DTO projection | 1 + count | works | Production lists: select only response columns. |
+| `join fetch` | 1 in this to-one lab | Do not use a to-many fetch join with a page | A bounded detail graph. |
+| `EntityGraph` | 1 in this to-one lab | Same collection caveat | A readable, repository-specific graph. |
+| `@BatchSize(4)` | At most 2 for four products | works | Existing lazy model with several to-one associations. |
+| DTO projection | 1 (plus count for a page) | works | Production lists: select only response columns. |
+
+The first three alternatives solve different problems. A fetch join puts the
+graph beside the query; an entity graph keeps the query text shorter; batching
+reduces, rather than removes, deferred loads. DTO projection has the least data
+and least entity-graph coupling for a list response, but it is intentionally
+read-specific and cannot be reused for an update aggregate.
 
 ## Production choice
 
-Product and Order list paths already use query-specific projections:
-`JpaProductRepositoryAdapter` maps the Product page, while `JdbcOrderQuery`
-selects its response snapshot directly. This avoids entity graph coupling and
-the Cartesian-product risk of collection fetch joins.
+Product and Order list paths use query-specific projections:
+`ProductJpaRepository#findProductList` selects a `ProductListProjection`, while
+`JdbcOrderQuery` selects its response snapshot directly. The lab includes a
+regression guard: the production product page must stay within two prepared
+statements (content plus count). This avoids entity graph coupling and the
+Cartesian-product risk of collection fetch joins.
 
-Use a fetch join/entity graph for a detail screen only when its bounded graph is
-known. Batch fetching is a safe fallback, not a replacement for a list DTO.
-Global `EAGER` is not the default fix: it moves hidden work to every load and
-can still produce N+1 across query boundaries.
+Use a fetch join or entity graph for a detail screen only when its bounded graph
+is known. Batch fetching is a safe fallback, not a replacement for a list DTO.
+Global `EAGER` is not the default fix: it moves hidden work to unrelated loads
+and can still create N+1 across query boundaries.
 
 ## Regression guard
 
 For a list endpoint, assert a bounded statement count through Hibernate
 statistics or a datasource proxy, rather than comparing SQL text. The bound
-must include the page content query and its count query, and should fail if a
-future mapper dereferences lazy associations per row.
+must include the page content query and its count query, and fails if a future
+mapper dereferences lazy associations per row.

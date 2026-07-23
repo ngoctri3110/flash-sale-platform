@@ -34,7 +34,7 @@ class JpaProductRepositoryAdapter implements ProductQuery, ProductStore {
             sort = sort.and(Sort.by("id").ascending());
         }
         var pageable = PageRequest.of(query.page(), query.size(), sort);
-        var result = repository.findAll(pageable);
+        var result = repository.findProductList(pageable);
         var content = result.getContent().stream().map(JpaProductRepositoryAdapter::toView).toList();
 
         return new ProductPage(
@@ -93,5 +93,17 @@ class JpaProductRepositoryAdapter implements ProductQuery, ProductStore {
                 product.isActive(),
                 product.getCreatedAt(),
                 product.getUpdatedAt());
+    }
+
+    private static ProductView toView(ProductListProjection product) {
+        return new ProductView(
+                product.id(),
+                product.name(),
+                product.description(),
+                product.price(),
+                product.currency(),
+                product.active(),
+                product.createdAt(),
+                product.updatedAt());
     }
 }
