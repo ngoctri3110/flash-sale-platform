@@ -70,11 +70,9 @@ export function AdminConcurrencyLab() {
   async function runScenario(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const selectedProductId = Number(productId);
-    const selectedInventory = inventory.find((item) => item.productId === selectedProductId);
     const totalRequests = Number(requestCount);
     const unitsPerRequest = Number(quantity);
     if (
-      !selectedInventory ||
       !Number.isInteger(totalRequests) ||
       totalRequests < 1 ||
       totalRequests > 100 ||
@@ -90,6 +88,15 @@ export function AdminConcurrencyLab() {
     setScenarioState("running");
     setScenarioError("");
     setResult(null);
+    const inventoryAtStart = await loadInventory();
+    const selectedInventory = inventoryAtStart?.find(
+      (item) => item.productId === selectedProductId,
+    );
+    if (!selectedInventory) {
+      setScenarioError("The selected Inventory could not be refreshed.");
+      setScenarioState("error");
+      return;
+    }
     const startedAt = performance.now();
     const replayCustomerId = crypto.randomUUID();
     const replayKey = crypto.randomUUID();

@@ -287,6 +287,73 @@ describe("App", () => {
     )).size).toBe(1);
   });
 
+  it("uses an Inventory snapshot taken immediately before the concurrency scenario", async () => {
+    const product = {
+      id: 1,
+      name: "Mechanical Keyboard",
+      description: "A compact keyboard built for long coding sessions.",
+      price: 2490000,
+      currency: "VND",
+      active: true,
+      createdAt: "2026-07-23T00:00:00Z",
+      updatedAt: "2026-07-23T00:00:00Z",
+    };
+    let ascendingInventoryRequests = 0;
+    const fetchMock = vi.fn().mockImplementation(
+      (input: string | URL | Request, init?: RequestInit) => {
+        const url = input.toString();
+        if (url.endsWith("/actuator/health")) {
+          return Promise.resolve(jsonResponse({ status: "UP" }));
+        }
+        if (url.includes("/api/v1/orders") && init?.method === "POST") {
+          return Promise.resolve(jsonResponse({ id: 1 }, 201));
+        }
+        if (url.includes("/api/v1/inventories")) {
+          const isLabRequest = url.includes("sort=productId,asc");
+          if (isLabRequest) ascendingInventoryRequests += 1;
+          const availableQuantity = isLabRequest
+            ? [3, 2, 1][ascendingInventoryRequests - 1]
+            : 1;
+          return Promise.resolve(
+            jsonResponse({
+              content: [
+                {
+                  productId: 1,
+                  productName: product.name,
+                  availableQuantity,
+                  updatedAt: "2026-07-23T00:00:00Z",
+                },
+              ],
+              page: { number: 0, size: 100, totalElements: 1, totalPages: 1 },
+            }),
+          );
+        }
+        return Promise.resolve(
+          jsonResponse({
+            content: [product],
+            page: { number: 0, size: 20, totalElements: 1, totalPages: 1 },
+          }),
+        );
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    await screen.findByRole("button", { name: /Mechanical Keyboard/ });
+    fireEvent.click(screen.getByRole("button", { name: "Admin" }));
+    fireEvent.change(
+      await screen.findByRole("combobox", { name: "Concurrency product" }),
+      { target: { value: "1" } },
+    );
+    fireEvent.change(screen.getByLabelText("Concurrent requests"), {
+      target: { value: "1" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Run concurrency scenario" }));
+
+    expect(await screen.findByText("Final Available Quantity: 1")).toBeInTheDocument();
+    expect(screen.getByText("Oversold: false")).toBeInTheDocument();
+  });
+
   it("lets a customer intentionally replay the same Order request", async () => {
     const product = {
       id: 1,
