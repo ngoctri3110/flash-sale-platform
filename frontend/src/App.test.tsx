@@ -717,6 +717,143 @@ describe("App", () => {
     expect(selector).toBeDisabled();
   });
 
+  it("lets an administrator adjust Inventory and shows the committed quantity", async () => {
+    const inventory = {
+      productId: 1,
+      productName: "Mechanical Keyboard",
+      availableQuantity: 18,
+      updatedAt: "2026-07-23T00:00:00Z",
+    };
+    const adjusted = {
+      ...inventory,
+      availableQuantity: 25,
+      updatedAt: "2026-07-23T01:00:00Z",
+    };
+    const fetchMock = vi.fn().mockImplementation(
+      (input: string | URL | Request, init?: RequestInit) => {
+        const url = input.toString();
+        if (url.endsWith("/actuator/health")) {
+          return Promise.resolve(jsonResponse({ status: "UP" }));
+        }
+        if (
+          url.endsWith("/api/v1/inventories/1/adjustments") &&
+          init?.method === "POST"
+        ) {
+          return Promise.resolve(jsonResponse(adjusted));
+        }
+        if (url.includes("/api/v1/inventories")) {
+          return Promise.resolve(jsonResponse({ content: [inventory] }));
+        }
+        return Promise.resolve(
+          jsonResponse({
+            content: [],
+            page: { number: 0, size: 20, totalElements: 0, totalPages: 0 },
+          }),
+        );
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    await screen.findByText("No products are available for this sale yet.");
+    fireEvent.click(screen.getByRole("button", { name: "Admin" }));
+    fireEvent.change(
+      await screen.findByRole("combobox", { name: "Inventory to adjust" }),
+      { target: { value: "1" } },
+    );
+    fireEvent.change(screen.getByLabelText("Quantity delta"), {
+      target: { value: "7" },
+    });
+    fireEvent.change(screen.getByLabelText("Adjustment reason"), {
+      target: { value: "Received supplier shipment" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Apply adjustment" }));
+
+    expect(await screen.findByText("25 available")).toBeInTheDocument();
+    expect(await screen.findByText(/Mechanical Keyboard adjusted/)).toHaveAttribute(
+      "role",
+      "status",
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/inventories/1/adjustments",
+      expect.objectContaining({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          quantityDelta: 7,
+          reason: "Received supplier shipment",
+        }),
+      }),
+    );
+  });
+
+  it("maps Inventory adjustment Problem Details to the Admin form", async () => {
+    const inventory = {
+      productId: 1,
+      productName: "Mechanical Keyboard",
+      availableQuantity: 18,
+      updatedAt: "2026-07-23T00:00:00Z",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(
+        (input: string | URL | Request, init?: RequestInit) => {
+          const url = input.toString();
+          if (url.endsWith("/actuator/health")) {
+            return Promise.resolve(jsonResponse({ status: "UP" }));
+          }
+          if (
+            url.endsWith("/api/v1/inventories/1/adjustments") &&
+            init?.method === "POST"
+          ) {
+            return Promise.resolve(
+              jsonResponse(
+                {
+                  detail: "One or more request parameters are invalid",
+                  fieldErrors: [{ field: "reason", message: "size must be between 3 and 200" }],
+                },
+                400,
+              ),
+            );
+          }
+          if (url.includes("/api/v1/inventories")) {
+            return Promise.resolve(jsonResponse({ content: [inventory] }));
+          }
+          return Promise.resolve(
+            jsonResponse({
+              content: [],
+              page: { number: 0, size: 20, totalElements: 0, totalPages: 0 },
+            }),
+          );
+        },
+      ),
+    );
+
+    render(<App />);
+    await screen.findByText("No products are available for this sale yet.");
+    fireEvent.click(screen.getByRole("button", { name: "Admin" }));
+    fireEvent.change(
+      await screen.findByRole("combobox", { name: "Inventory to adjust" }),
+      { target: { value: "1" } },
+    );
+    fireEvent.change(screen.getByLabelText("Quantity delta"), {
+      target: { value: "1" },
+    });
+    fireEvent.change(screen.getByLabelText("Adjustment reason"), {
+      target: { value: "ab" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Apply adjustment" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "One or more request parameters are invalid",
+    );
+    expect(screen.getByLabelText("Adjustment reason")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(screen.getByText("size must be between 3 and 200")).toBeInTheDocument();
+  });
+
   it("locks the submitted form while product creation is pending", async () => {
     vi.stubGlobal(
       "fetch",

@@ -1,24 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { AdminInventoryWorkspace } from "./AdminInventoryWorkspace";
 import type { Product } from "./api-types";
 
 type CreationState = "idle" | "loading" | "error" | "success";
-type LoadState = "loading" | "ready" | "error";
 
 type ProblemDetail = {
   detail?: string;
   fieldErrors?: { field: string; message: string }[];
-};
-
-type Inventory = {
-  productId: number;
-  productName: string;
-  availableQuantity: number;
-  updatedAt: string;
-};
-
-type InventoryPage = {
-  content: Inventory[];
 };
 
 type ProductPage = {
@@ -50,32 +39,7 @@ export function AdminProductWorkspace({
   const [editPrice, setEditPrice] = useState("");
   const [editActive, setEditActive] = useState(false);
   const [editableProducts, setEditableProducts] = useState(products);
-  const [inventory, setInventory] = useState<Inventory[]>([]);
-  const [inventoryState, setInventoryState] = useState<LoadState>("loading");
-  const latestInventoryRequest = useRef(0);
   const latestEditRequest = useRef(0);
-
-  const loadInventory = useCallback(async () => {
-    const requestId = ++latestInventoryRequest.current;
-    setInventoryState("loading");
-    try {
-      const response = await fetch(
-        `${apiBaseUrl}/api/v1/inventories?size=100&sort=productId,desc`,
-      );
-      if (!response.ok) throw new Error("Inventory request failed");
-      const page = (await response.json()) as InventoryPage;
-      if (requestId !== latestInventoryRequest.current) return;
-      setInventory(page.content);
-      setInventoryState("ready");
-    } catch {
-      if (requestId !== latestInventoryRequest.current) return;
-      setInventoryState("error");
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadInventory();
-  }, [loadInventory]);
 
   useEffect(() => {
     let current = true;
@@ -147,7 +111,6 @@ export function AdminProductWorkspace({
       setCreationState("success");
       form.reset();
       onCreated(product);
-      await loadInventory();
     } catch {
       setCreationMessage("The API is unavailable. Check the local backend and retry.");
       setCreationState("error");
@@ -458,43 +421,7 @@ export function AdminProductWorkspace({
         </form>
       </section>
 
-      <aside className="creation-ledger" aria-live="polite">
-        <p className="eyebrow">Persisted inventory</p>
-        <h2>Inventory view</h2>
-        {createdProduct && (
-          <p role="status">
-            {createdProduct.name} committed. The inventory snapshot was refreshed.
-          </p>
-        )}
-        {inventoryState === "loading" && <p role="status">Loading inventory…</p>}
-        {inventoryState === "error" && (
-          <div role="alert">
-            <p>Inventory could not be loaded.</p>
-            <button type="button" onClick={() => void loadInventory()}>
-              Retry inventory
-            </button>
-          </div>
-        )}
-        {inventoryState === "ready" && inventory.length === 0 && (
-          <p>No Inventory records exist yet.</p>
-        )}
-        {inventoryState === "ready" && inventory.length > 0 && (
-          <div className="inventory-list">
-            {inventory.map((item) => (
-              <article
-                key={item.productId}
-                className={item.productId === createdProduct?.id ? "is-new" : undefined}
-              >
-                <div>
-                  <strong>{item.productName}</strong>
-                  <small>Product #{item.productId}</small>
-                </div>
-                <span>{item.availableQuantity.toLocaleString("en-US")} available</span>
-              </article>
-            ))}
-          </div>
-        )}
-      </aside>
+      <AdminInventoryWorkspace createdProduct={createdProduct} />
     </main>
   );
 }

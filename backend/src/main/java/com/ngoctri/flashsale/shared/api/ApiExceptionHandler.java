@@ -1,6 +1,8 @@
 package com.ngoctri.flashsale.shared.api;
 
 import com.ngoctri.flashsale.inventory.application.UnsupportedInventorySortException;
+import com.ngoctri.flashsale.inventory.application.InventoryNotFoundException;
+import com.ngoctri.flashsale.inventory.application.InventoryWouldBeNegativeException;
 import com.ngoctri.flashsale.product.application.ProductNotFoundException;
 import com.ngoctri.flashsale.product.application.UnsupportedProductSortException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,6 +33,32 @@ class ApiExceptionHandler {
         problem.setTitle("Product not found");
         problem.setInstance(URI.create(request.getRequestURI()));
         problem.setProperty("code", "PRODUCT_NOT_FOUND");
+        problem.setProperty("traceId", traceId(request));
+        return problem;
+    }
+
+    @ExceptionHandler(InventoryNotFoundException.class)
+    ProblemDetail handleInventoryNotFound(
+            InventoryNotFoundException exception,
+            HttpServletRequest request) {
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+        problem.setType(URI.create("https://flash-sale.local/problems/product-not-found"));
+        problem.setTitle("Product not found");
+        problem.setInstance(URI.create(request.getRequestURI()));
+        problem.setProperty("code", "PRODUCT_NOT_FOUND");
+        problem.setProperty("traceId", traceId(request));
+        return problem;
+    }
+
+    @ExceptionHandler(InventoryWouldBeNegativeException.class)
+    ProblemDetail handleInventoryWouldBeNegative(
+            InventoryWouldBeNegativeException exception,
+            HttpServletRequest request) {
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
+        problem.setType(URI.create("https://flash-sale.local/problems/insufficient-stock"));
+        problem.setTitle("Insufficient stock");
+        problem.setInstance(URI.create(request.getRequestURI()));
+        problem.setProperty("code", "INSUFFICIENT_STOCK");
         problem.setProperty("traceId", traceId(request));
         return problem;
     }

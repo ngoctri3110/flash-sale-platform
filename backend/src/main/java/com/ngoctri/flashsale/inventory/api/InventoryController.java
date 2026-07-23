@@ -1,22 +1,29 @@
 package com.ngoctri.flashsale.inventory.api;
 
 import com.ngoctri.flashsale.inventory.application.InventoryCatalog;
+import com.ngoctri.flashsale.inventory.application.InventoryAdjuster;
 import com.ngoctri.flashsale.inventory.application.InventorySort;
 import com.ngoctri.flashsale.inventory.application.UnsupportedInventorySortException;
 import com.ngoctri.flashsale.shared.api.ListParameters;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/inventories")
 class InventoryController {
 
     private final InventoryCatalog inventoryCatalog;
+    private final InventoryAdjuster inventoryAdjuster;
 
-    InventoryController(InventoryCatalog inventoryCatalog) {
+    InventoryController(InventoryCatalog inventoryCatalog, InventoryAdjuster inventoryAdjuster) {
         this.inventoryCatalog = inventoryCatalog;
+        this.inventoryAdjuster = inventoryAdjuster;
     }
 
     @GetMapping
@@ -28,6 +35,13 @@ class InventoryController {
                 ListParameters.parseInteger("page", page, 0, 0, Integer.MAX_VALUE),
                 ListParameters.parseInteger("size", size, 20, 1, 100),
                 parseSort(sort == null ? "productId,asc" : sort)));
+    }
+
+    @PostMapping("/{productId}/adjustments")
+    InventoryResponse adjustInventory(
+            @PathVariable long productId,
+            @Valid @RequestBody AdjustInventoryRequest request) {
+        return InventoryResponse.from(inventoryAdjuster.adjust(request.toCommand(productId)));
     }
 
     private static InventorySort parseSort(String value) {
