@@ -422,7 +422,7 @@ components:
           maxLength: 120
           pattern: '^\S(?:.*\S)?$'
         description:
-          type: string
+          type: [string, "null"]
           maxLength: 1000
         price:
           type: number

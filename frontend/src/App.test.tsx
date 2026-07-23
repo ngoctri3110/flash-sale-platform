@@ -354,6 +354,7 @@ describe("App", () => {
       createdAt: "2026-07-23T00:00:00Z",
       updatedAt: "2026-07-23T00:00:00Z",
     };
+    let productCreated = false;
     const fetchMock = vi.fn().mockImplementation(
       (input: string | URL | Request, init?: RequestInit) => {
         const url = input.toString();
@@ -361,7 +362,30 @@ describe("App", () => {
           return Promise.resolve(jsonResponse({ status: "UP" }));
         }
         if (url.endsWith("/api/v1/products") && init?.method === "POST") {
+          productCreated = true;
           return Promise.resolve(jsonResponse(createdProduct, 201));
+        }
+        if (url.includes("/api/v1/inventories")) {
+          return Promise.resolve(
+            jsonResponse({
+              content: productCreated
+                ? [
+                    {
+                      productId: 9,
+                      productName: "Standing Desk",
+                      availableQuantity: 25,
+                      updatedAt: "2026-07-23T00:00:00Z",
+                    },
+                  ]
+                : [],
+              page: {
+                number: 0,
+                size: 100,
+                totalElements: productCreated ? 1 : 0,
+                totalPages: productCreated ? 1 : 0,
+              },
+            }),
+          );
         }
         return Promise.resolve(
           jsonResponse({
@@ -391,9 +415,8 @@ describe("App", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Create product" }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "Standing Desk created with 25 available",
-    );
+    expect(await screen.findByText(/Standing Desk committed/)).toBeInTheDocument();
+    expect(await screen.findByText("25 available")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/products",
       expect.objectContaining({
@@ -413,6 +436,46 @@ describe("App", () => {
     expect(
       screen.getByRole("button", { name: /Standing Desk/ }),
     ).toBeInTheDocument();
+  });
+
+  it("locks the submitted form while product creation is pending", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(
+        (input: string | URL | Request, init?: RequestInit) => {
+          const url = input.toString();
+          if (url.endsWith("/actuator/health")) {
+            return Promise.resolve(jsonResponse({ status: "UP" }));
+          }
+          if (url.endsWith("/api/v1/products") && init?.method === "POST") {
+            return new Promise<Response>(() => undefined);
+          }
+          return Promise.resolve(
+            jsonResponse({
+              content: [],
+              page: { number: 0, size: 20, totalElements: 0, totalPages: 0 },
+            }),
+          );
+        },
+      ),
+    );
+
+    render(<App />);
+    await screen.findByText("No products are available for this sale yet.");
+    fireEvent.click(screen.getByRole("button", { name: "Admin" }));
+
+    const name = screen.getByLabelText("Product name");
+    fireEvent.change(name, { target: { value: "Standing Desk" } });
+    fireEvent.change(screen.getByLabelText("Price (VND)"), {
+      target: { value: "15990000" },
+    });
+    fireEvent.change(screen.getByLabelText("Initial inventory"), {
+      target: { value: "25" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create product" }));
+
+    expect(name).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Creating product…" })).toBeDisabled();
   });
 
   it("maps product creation problem details back to the Admin form", async () => {

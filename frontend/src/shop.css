@@ -224,6 +224,19 @@ button[data-state="success"] {
   border-top: var(--rule-thin) solid var(--color-rule-strong);
 }
 
+.product-form fieldset {
+  display: grid;
+  gap: var(--space-lg);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.product-form fieldset:disabled {
+  opacity: 0.72;
+}
+
 .form-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -416,6 +429,44 @@ button[data-state="success"] {
   margin: 0;
   color: var(--color-graphite-ink);
   overflow-wrap: anywhere;
+}
+
+.inventory-list {
+  display: grid;
+  margin-top: var(--space-xl);
+  border-top: var(--rule-thin) solid var(--color-graphite-2);
+}
+
+.inventory-list article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md) 0;
+  border-bottom: var(--rule-thin) solid var(--color-graphite-2);
+}
+
+.inventory-list article.is-new {
+  color: var(--color-graphite-ink);
+}
+
+.inventory-list article div {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.inventory-list article small,
+.inventory-list article > span {
+  font: var(--text-xs) / 1.4 var(--font-mono);
+}
+
+.creation-ledger [role="alert"] button {
+  min-height: 2.75rem;
+  padding: var(--space-sm) var(--space-md);
+  border: var(--rule-thin) solid var(--color-graphite-ink);
+  background: transparent;
+  color: var(--color-graphite-ink);
+  cursor: pointer;
 }
 
 .catalogue {

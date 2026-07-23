@@ -15,12 +15,12 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 
 @Repository
-class JpaProductQuery implements ProductQuery, ProductStore {
+class JpaProductRepositoryAdapter implements ProductQuery, ProductStore {
 
     private final ProductJpaRepository repository;
     private final Clock clock;
 
-    JpaProductQuery(ProductJpaRepository repository) {
+    JpaProductRepositoryAdapter(ProductJpaRepository repository) {
         this.repository = repository;
         this.clock = Clock.systemUTC();
     }
@@ -34,7 +34,7 @@ class JpaProductQuery implements ProductQuery, ProductStore {
         }
         var pageable = PageRequest.of(query.page(), query.size(), sort);
         var result = repository.findAllByActiveTrue(pageable);
-        var content = result.getContent().stream().map(JpaProductQuery::toView).toList();
+        var content = result.getContent().stream().map(JpaProductRepositoryAdapter::toView).toList();
 
         return new ProductPage(
                 content,
@@ -46,7 +46,7 @@ class JpaProductQuery implements ProductQuery, ProductStore {
 
     @Override
     public Optional<ProductView> findById(long productId) {
-        return repository.findById(productId).map(JpaProductQuery::toView);
+        return repository.findById(productId).map(JpaProductRepositoryAdapter::toView);
     }
 
     @Override

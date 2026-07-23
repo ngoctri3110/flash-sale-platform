@@ -4,6 +4,7 @@ import com.ngoctri.flashsale.product.application.ProductCatalog;
 import com.ngoctri.flashsale.product.application.ProductCreator;
 import com.ngoctri.flashsale.product.application.ProductSort;
 import com.ngoctri.flashsale.product.application.UnsupportedProductSortException;
+import com.ngoctri.flashsale.shared.api.InvalidListParameterException;
 import jakarta.validation.Valid;
 import java.net.URI;
 import org.springframework.http.ResponseEntity;
@@ -78,19 +79,19 @@ class ProductController {
             return defaultValue;
         }
         if (value.isBlank()) {
-            throw new InvalidProductListParameterException(field, "must not be blank");
+            throw new InvalidListParameterException(field, "must not be blank");
         }
 
         try {
             var parsed = Integer.parseInt(value);
             if (parsed < minimum || parsed > maximum) {
-                throw new InvalidProductListParameterException(
+                throw new InvalidListParameterException(
                         field,
                         "must be between " + minimum + " and " + maximum);
             }
             return parsed;
         } catch (NumberFormatException exception) {
-            throw new InvalidProductListParameterException(field, "must be a valid integer");
+            throw new InvalidListParameterException(field, "must be a valid integer");
         }
     }
 }

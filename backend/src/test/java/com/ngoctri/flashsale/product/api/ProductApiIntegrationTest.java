@@ -2,7 +2,11 @@ package com.ngoctri.flashsale.product.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 
+import com.ngoctri.flashsale.inventory.application.InitialInventoryStore;
 import com.ngoctri.flashsale.product.application.CreateProductCommand;
 import com.ngoctri.flashsale.product.application.ProductCreator;
 import java.math.BigDecimal;
@@ -15,13 +19,16 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.testcontainers.junit.jupiter.Container;
@@ -53,6 +60,9 @@ class ProductApiIntegrationTest {
 
     @Autowired
     private ProductCreator productCreator;
+
+    @MockitoSpyBean
+    private InitialInventoryStore initialInventoryStore;
 
     @AfterEach
     void removeProductsCreatedByTests() {
@@ -95,6 +105,12 @@ class ProductApiIntegrationTest {
                         .query(Long.class)
                         .single())
                 .isEqualTo(25);
+
+        var inventoryResponse = get("/api/v1/inventories?size=100");
+        assertThat(inventoryResponse.statusCode()).isEqualTo(200);
+        assertThat(inventoryResponse.body())
+                .contains("\"productName\":\"Standing Desk\"")
+                .contains("\"availableQuantity\":25");
     }
 
     @Test
@@ -135,24 +151,108 @@ class ProductApiIntegrationTest {
         assertValidationProblem(response, "request");
     }
 
+    @ParameterizedTest
+    @ValueSource(longs = {0, 1_000_000})
+    void initialInventoryBoundariesAreAccepted(long initialInventory) throws Exception {
+        var name = "Boundary Inventory " + initialInventory;
+        var response = post(
+                "/api/v1/products",
+                """
+                {
+                  "name": "%s",
+                  "price": 1000,
+                  "active": true,
+                  "initialInventory": %d
+                }
+                """.formatted(name, initialInventory));
+
+        assertThat(response.statusCode()).isEqualTo(201);
+        var productId = objectMapper.readTree(response.body()).path("id").asLong();
+        assertThat(jdbcClient
+                        .sql("SELECT available_quantity FROM inventories WHERE product_id = ?")
+                        .param(productId)
+                        .query(Long.class)
+                        .single())
+                .isEqualTo(initialInventory);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "'Negative Inventory', 1000, -1, initialInventory",
+        "'Zero Price', 0, 1, price",
+        "'Negative Price', -1, 1, price"
+    })
+    void invalidNumericBoundariesLeaveNoProductOrInventory(
+            String name, String price, long initialInventory, String field) throws Exception {
+        var response = post(
+                "/api/v1/products",
+                """
+                {
+                  "name": "%s",
+                  "price": %s,
+                  "active": true,
+                  "initialInventory": %d
+                }
+                """.formatted(name, price, initialInventory));
+
+        assertValidationProblem(response, field);
+        assertThat(countProductsNamed(name)).isZero();
+    }
+
+    @Test
+    void overlongTextFieldsAreRejectedWithoutPersistence() throws Exception {
+        var response = post(
+                "/api/v1/products",
+                """
+                {
+                  "name": "%s",
+                  "description": "%s",
+                  "price": 1000,
+                  "active": true,
+                  "initialInventory": 1
+                }
+                """.formatted("N".repeat(121), "D".repeat(1001)));
+
+        assertValidationProblem(response, "name");
+        assertThat(response.body()).contains("\"field\":\"description\"");
+        assertThat(countProductsNamed("N".repeat(121))).isZero();
+    }
+
+    @Test
+    void databaseRejectsNegativeInventory() {
+        assertThatThrownBy(() -> jdbcClient
+                        .sql("UPDATE inventories SET available_quantity = -1 WHERE product_id = 1")
+                        .update())
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("ck_inventories_available_quantity_non_negative");
+    }
+
     @Test
     void productRollsBackWhenInitialInventoryCannotBeCommitted() {
+        doThrow(new IllegalStateException("simulated inventory persistence failure"))
+                .when(initialInventoryStore)
+                .create(anyLong(), eq(999_999L));
         var command = new CreateProductCommand(
                 "Rollback Proof",
                 "Must not survive a failed Inventory insert.",
                 new BigDecimal("100000.00"),
                 true,
-                1_000_001);
+                999_999);
 
         assertThatThrownBy(() -> productCreator.create(command))
-                .isInstanceOf(RuntimeException.class);
+                .isInstanceOf(InvalidDataAccessApiUsageException.class)
+                .hasRootCauseInstanceOf(IllegalStateException.class)
+                .hasRootCauseMessage("simulated inventory persistence failure");
 
-        assertThat(jdbcClient
-                        .sql("SELECT COUNT(*) FROM products WHERE name = ?")
-                        .param(command.name())
-                        .query(Long.class)
-                        .single())
-                .isZero();
+        assertThat(countProductsNamed(command.name())).isZero();
+    }
+
+    private long countProductsNamed(String name) {
+        return jdbcClient
+                .sql("SELECT COUNT(*) FROM products WHERE name = ?")
+                .param(name)
+                .query(Long.class)
+                .single();
     }
 
     @Test
