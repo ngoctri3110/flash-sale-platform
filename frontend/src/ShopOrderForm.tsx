@@ -25,7 +25,7 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export function ShopOrderForm({ product }: { product: Product }) {
   const [customerId] = useState(() => crypto.randomUUID());
-  const [idempotencyKey] = useState(() => crypto.randomUUID());
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const [quantity, setQuantity] = useState("1");
   const [requestState, setRequestState] = useState<RequestState>("idle");
   const [acceptedOrder, setAcceptedOrder] = useState<Order | null>(null);
@@ -89,6 +89,9 @@ export function ShopOrderForm({ product }: { product: Product }) {
           required
           value={quantity}
           onChange={(event) => {
+            if (acceptedOrder) {
+              setIdempotencyKey(crypto.randomUUID());
+            }
             setQuantity(event.target.value);
             setRequestState("idle");
             setAcceptedOrder(null);
