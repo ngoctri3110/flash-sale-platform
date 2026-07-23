@@ -2,6 +2,8 @@ spring:
   application:
     name: flash-sale-backend
   jpa:
+    hibernate:
+      ddl-auto: validate
     open-in-view: false
 
 management:

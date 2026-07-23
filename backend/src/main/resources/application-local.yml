@@ -3,3 +3,5 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/flashsale}
     username: ${DB_USERNAME:flashsale}
     password: ${DB_PASSWORD:flashsale}
+  flyway:
+    locations: classpath:db/migration,classpath:db/local

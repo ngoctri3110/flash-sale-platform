@@ -1,75 +1,286 @@
 import { useEffect, useState } from "react";
 
 type HealthState = "checking" | "healthy" | "unavailable";
+type LoadState = "loading" | "ready" | "error";
+
+type Product = {
+  id: number;
+  name: string;
+  description: string;
+  price: number;
+  currency: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type ProductPage = {
+  content: Product[];
+  page: {
+    number: number;
+    size: number;
+    totalElements: number;
+    totalPages: number;
+  };
+};
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 
 function App() {
   const [health, setHealth] = useState<HealthState>("checking");
+  const [products, setProducts] = useState<Product[]>([]);
+  const [listState, setListState] = useState<LoadState>("loading");
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [detailState, setDetailState] = useState<LoadState>("ready");
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [productQuery, setProductQuery] = useState("");
+  const [activeCommand, setActiveCommand] = useState(0);
+
+  const filteredProducts = products.filter((product) =>
+    product.name.toLocaleLowerCase().includes(productQuery.toLocaleLowerCase()),
+  );
+
+  async function loadProducts(isCurrent: () => boolean = () => true) {
+    setListState("loading");
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/v1/products`);
+      if (!response.ok) throw new Error("Product list request failed");
+      const body = (await response.json()) as ProductPage;
+      if (isCurrent()) {
+        setProducts(body.content);
+        setListState("ready");
+      }
+    } catch {
+      if (isCurrent()) setListState("error");
+    }
+  }
 
   useEffect(() => {
     let isActive = true;
 
-    async function checkBackendHealth() {
-      try {
-        const response = await fetch(`${apiBaseUrl}/actuator/health`);
+    void fetch(`${apiBaseUrl}/actuator/health`)
+      .then(async (response) => {
         const body = (await response.json()) as { status?: string };
-
         if (isActive) {
-          setHealth(
-            response.ok && body.status === "UP" ? "healthy" : "unavailable",
-          );
+          setHealth(response.ok && body.status === "UP" ? "healthy" : "unavailable");
         }
-      } catch {
-        if (isActive) {
-          setHealth("unavailable");
-        }
-      }
-    }
+      })
+      .catch(() => {
+        if (isActive) setHealth("unavailable");
+      });
 
-    void checkBackendHealth();
+    void loadProducts(() => isActive);
 
     return () => {
       isActive = false;
     };
   }, []);
 
+  useEffect(() => {
+    function handleShortcut(event: KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === "k") {
+        event.preventDefault();
+        setPaletteOpen(true);
+      }
+      if (event.key === "Escape") {
+        setPaletteOpen(false);
+      }
+    }
+
+    document.addEventListener("keydown", handleShortcut);
+    return () => document.removeEventListener("keydown", handleShortcut);
+  }, []);
+
+  async function selectProduct(productId: number) {
+    setDetailState("loading");
+    setSelectedProduct(null);
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/v1/products/${productId}`);
+      if (!response.ok) throw new Error("Product detail request failed");
+      setSelectedProduct((await response.json()) as Product);
+      setDetailState("ready");
+    } catch {
+      setDetailState("error");
+    }
+  }
+
+  function runProductCommand(productId: number) {
+    setPaletteOpen(false);
+    setProductQuery("");
+    setActiveCommand(0);
+    void selectProduct(productId);
+  }
+
   return (
-    <main className="app-shell">
-      <section className="hero" aria-labelledby="page-title">
-        <p className="eyebrow">Java 21 / Spring Boot / React</p>
-        <h1 id="page-title">Flash Sale Platform</h1>
-        <p className="subtitle">
-          A learning platform for safe ordering under high concurrency.
-        </p>
-
-        <div className={`health-card health-card--${health}`} aria-live="polite">
-          <span className="health-dot" aria-hidden="true" />
-          {health === "checking" && "Checking backend..."}
-          {health === "healthy" && "Backend is healthy"}
-          {health === "unavailable" && "Backend is unavailable"}
+    <div className="app-shell">
+      <header className="app-header">
+        <div className="brand-cluster">
+          <a className="wordmark" href="/" aria-label="Flash Sale Platform home">
+            Flash Sale
+          </a>
+          <div className={`health-status health-status--${health}`} aria-live="polite">
+            <span className="health-dot" aria-hidden="true" />
+            {health === "checking" && "Connecting"}
+            {health === "healthy" && "API online"}
+            {health === "unavailable" && "API offline"}
+          </div>
         </div>
-      </section>
+        <button
+          className="command-trigger"
+          type="button"
+          onClick={() => setPaletteOpen(true)}
+          aria-label="Open product finder"
+        >
+          Find product <kbd>Ctrl K</kbd>
+        </button>
+      </header>
 
-      <section className="module-grid" aria-label="MVP modules">
-        <article>
-          <span>01</span>
-          <h2>Products</h2>
-          <p>Browse products prepared for a flash sale.</p>
-        </article>
-        <article>
-          <span>02</span>
-          <h2>Inventory</h2>
-          <p>Observe limited stock and concurrency-safe updates.</p>
-        </article>
-        <article>
-          <span>03</span>
-          <h2>Orders</h2>
-          <p>Place and inspect orders without overselling.</p>
-        </article>
-      </section>
-    </main>
+      <main className="workspace">
+        <section className="catalogue" aria-labelledby="catalogue-title">
+          <div className="section-heading">
+            <p className="eyebrow">GET /api/v1/products</p>
+            <h1 id="catalogue-title">Available products</h1>
+          </div>
+
+          {listState === "loading" && <p role="status">Loading products…</p>}
+          {listState === "error" && (
+            <div className="error-state" role="alert" aria-label="Products unavailable">
+              <p>The catalogue could not be loaded.</p>
+              <button type="button" onClick={() => void loadProducts()}>
+                Retry products
+              </button>
+            </div>
+          )}
+          {listState === "ready" && (
+            products.length === 0 ? (
+              <p className="empty-state">No products are available for this sale yet.</p>
+            ) : (
+              <div className="product-list">
+                {products.map((product) => (
+                  <button
+                    className="product-row"
+                    key={product.id}
+                    type="button"
+                    onClick={() => void selectProduct(product.id)}
+                  >
+                    <span className="product-id">#{product.id.toString().padStart(3, "0")}</span>
+                    <span className="product-name">{product.name}</span>
+                    <span className="product-price">{formatMoney(product)}</span>
+                    <span aria-hidden="true">→</span>
+                  </button>
+                ))}
+              </div>
+            )
+          )}
+        </section>
+
+        <aside className="detail-panel" aria-live="polite">
+          {detailState === "loading" && <p role="status">Loading product details…</p>}
+          {detailState === "error" && (
+            <div role="alert" aria-label="Product details unavailable">
+              <p>Product details could not be loaded.</p>
+              <p>Select another product or try this one again.</p>
+            </div>
+          )}
+          {detailState === "ready" && selectedProduct && (
+            <>
+              <p className="eyebrow">Product #{selectedProduct.id}</p>
+              <h2>{selectedProduct.name}</h2>
+              <p>{selectedProduct.description}</p>
+              <dl>
+                <div>
+                  <dt>Price</dt>
+                  <dd>{formatMoney(selectedProduct)}</dd>
+                </div>
+                <div>
+                  <dt>Availability</dt>
+                  <dd>
+                    {selectedProduct.active
+                      ? "Available for ordering"
+                      : "Currently unavailable"}
+                  </dd>
+                </div>
+              </dl>
+            </>
+          )}
+          {detailState === "ready" && !selectedProduct && (
+            <p>Select a product to inspect its public API response.</p>
+          )}
+        </aside>
+      </main>
+
+      {paletteOpen && (
+        <div
+          className="palette-backdrop"
+          onMouseDown={(event) => {
+            if (event.currentTarget === event.target) setPaletteOpen(false);
+          }}
+        >
+          <section
+            className="command-palette"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Product finder"
+          >
+            <label htmlFor="product-search">Filter products</label>
+            <input
+              autoFocus
+              id="product-search"
+              type="search"
+              value={productQuery}
+              onChange={(event) => {
+                setProductQuery(event.target.value);
+                setActiveCommand(0);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "ArrowDown") {
+                  event.preventDefault();
+                  setActiveCommand((current) =>
+                    Math.min(current + 1, filteredProducts.length - 1),
+                  );
+                }
+                if (event.key === "ArrowUp") {
+                  event.preventDefault();
+                  setActiveCommand((current) => Math.max(current - 1, 0));
+                }
+                if (event.key === "Enter" && filteredProducts[activeCommand]) {
+                  runProductCommand(filteredProducts[activeCommand].id);
+                }
+              }}
+              aria-label="Filter products"
+            />
+            <div className="command-results">
+              {filteredProducts.map((product, index) => (
+                <button
+                  className={index === activeCommand ? "is-active" : undefined}
+                  key={product.id}
+                  type="button"
+                  onMouseEnter={() => setActiveCommand(index)}
+                  onClick={() => runProductCommand(product.id)}
+                >
+                  <span>{product.name}</span>
+                  <span>{formatMoney(product)}</span>
+                </button>
+              ))}
+              {filteredProducts.length === 0 && <p>No matching products.</p>}
+            </div>
+          </section>
+        </div>
+      )}
+
+      <footer className="app-footer">
+        <p>Learning build · Java 21 + Spring Boot + React</p>
+      </footer>
+    </div>
   );
+}
+
+function formatMoney(product: Pick<Product, "price" | "currency">) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: product.currency,
+    maximumFractionDigits: 0,
+  }).format(product.price);
 }
 
 export default App;

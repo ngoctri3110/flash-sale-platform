@@ -1,0 +1,10 @@
+{
+  "date": "2026-07-23",
+  "fontStack": "Inter and system fallbacks in src/styles.css",
+  "palette": "Raw hex values in src/styles.css",
+  "motion": "motion-cut; no motion library installed",
+  "spacing": "No existing token scale",
+  "framework": "React 19 with Vite 8",
+  "preserve": ["React", "Vite", "motion-cut"],
+  "introduce": ["Workbench macrostructure", "Cobalt tokens", "4pt spacing scale"]
+}
