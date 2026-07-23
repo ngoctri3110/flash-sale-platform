@@ -19,4 +19,14 @@ predictable local capacity; limits prevent one JVM from starving Kafka/PostgreSQ
 Smoke test: submit Orders using unique idempotency keys, then verify available
 quantity never drops below zero and inspect the `order-events.v1` consumer logs.
 
+## Verified local run (2026-07-23)
+
+On the Kind `flash-sale` cluster, PostgreSQL, Kafka, frontend, two backend HTTP
+replicas, and the single `event-consumer` replica became Ready. A smoke Order
+was accepted, Product browse returned five seeded products, Inventory changed
+from 18 to 17, and the Kafka consumer created one `order_event_audit` record.
+A backend rolling restart completed with `2/2` replicas Available. Run the
+existing Concurrency Lab separately against the port-forwarded backend for a
+machine-specific no-oversell load observation.
+
 Teardown: `kubectl delete namespace flash-sale`.
