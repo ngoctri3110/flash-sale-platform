@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Reference — Inventory Concurrency</title><link rel="stylesheet" href="../assets/lesson.css"></head>
+<body><main><header><p class="eyebrow">Quick reference</p><h1>Inventory concurrency</h1></header>
+<table><thead><tr><th>Strategy</th><th>Decision</th><th>Contention cost</th><th>Use when</th></tr></thead><tbody>
+<tr><td>Atomic conditional update</td><td><code>UPDATE ... WHERE stock &gt;= q</code></td><td>Short DB row-write wait</td><td>Simple single-row invariant; production Order flow</td></tr>
+<tr><td>Pessimistic</td><td><code>SELECT ... FOR UPDATE</code></td><td>Lock waiting; deadlock discipline</td><td>Need a consistent read of a bounded graph</td></tr>
+<tr><td>Optimistic</td><td><code>UPDATE ... WHERE version = v</code></td><td>Application retry and tail latency</td><td>Conflicts are rare and retry is cheap</td></tr>
+</tbody></table>
+<div class="card"><strong>Invariant:</strong> accepted quantity must not exceed available quantity. A result of zero updated rows is a normal insufficient-stock outcome, not automatically a database error.</div>
+</main></body></html>

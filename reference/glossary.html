@@ -1,0 +1,12 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Glossary — Flash Sale</title><link rel="stylesheet" href="../assets/lesson.css"></head><body><main>
+<header><p class="eyebrow">Shared vocabulary</p><h1>Flash Sale backend glossary</h1></header>
+<table><thead><tr><th>Term</th><th>Meaning in this project</th></tr></thead><tbody>
+<tr><td>Available Quantity</td><td>Sellable units in the single Inventory row for a Product; it must never become negative.</td></tr>
+<tr><td>Atomic conditional decrement</td><td>One SQL update whose predicate checks sufficient stock while the update deducts it.</td></tr>
+<tr><td>Idempotency-Key</td><td>Client key scoped to Customer; identical replay returns the existing Order without a second side effect.</td></tr>
+<tr><td>Transaction boundary</td><td>The `PlaceOrder.place()` unit in which inventory, Order and outbox intent commit or rollback together.</td></tr>
+<tr><td>Outbox event</td><td>Persisted intent to publish `OrderCreated` after database commit; it is not a Kafka publish itself.</td></tr>
+<tr><td>Optimistic conflict</td><td>A version compare-and-swap update affects zero rows because another writer won first.</td></tr>
+<tr><td>Pessimistic lock</td><td>A database row lock acquired before business decision, commonly `SELECT ... FOR UPDATE`.</td></tr>
+</tbody></table><p>Use these exact terms in lesson answers and code review discussions.</p>
+</main></body></html>
