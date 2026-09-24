@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 260" role="img" aria-labelledby="title desc">
+  <title id="title">Lộ trình Senior Backend tới Tech Lead</title>
+  <desc id="desc">Bốn chặng từ correctness đến technical leadership.</desc>
+  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#0f766e"/></marker></defs>
+  <rect width="1200" height="260" rx="24" fill="#f1fbf8"/>
+  <path d="M95 174H1100" stroke="#99d8ca" stroke-width="8" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <g font-family="Inter,Arial,sans-serif" text-anchor="middle">
+    <g fill="#fff" stroke="#8bcfc0" stroke-width="2">
+      <circle cx="150" cy="174" r="44"/><circle cx="440" cy="174" r="44"/><circle cx="730" cy="174" r="44"/><circle cx="1020" cy="174" r="44"/>
+    </g>
+    <g fill="#172033"><text x="150" y="60" font-size="19" font-weight="700">1 · Correctness</text><text x="150" y="88" font-size="14">transaction, concurrency</text>
+      <text x="440" y="60" font-size="19" font-weight="700">2 · Performance</text><text x="440" y="88" font-size="14">JPA, SQL, query plan</text>
+      <text x="730" y="60" font-size="19" font-weight="700">3 · Reliability</text><text x="730" y="88" font-size="14">Kafka, K8s, incidents</text>
+      <text x="1020" y="60" font-size="19" font-weight="700">4 · Leadership</text><text x="1020" y="88" font-size="14">design, delivery, mentoring</text>
+      <text x="150" y="181" font-size="22" font-weight="800">S1</text><text x="440" y="181" font-size="22" font-weight="800">S2</text><text x="730" y="181" font-size="22" font-weight="800">S3</text><text x="1020" y="181" font-size="22" font-weight="800">TL</text>
+      <text x="600" y="235" font-size="15" fill="#0f766e">Mỗi chặng cần code/test hoặc artifact để chứng minh</text>
+    </g>
+  </g>
+</svg>

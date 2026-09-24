@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" role="img" aria-labelledby="title desc">
+  <title id="title">Vòng lặp học thực hành</title>
+  <desc id="desc">Đọc code, chạy lab, tạo lỗi, sửa bằng test và giải thích trade-off.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1"><stop stop-color="#eef5ff"/><stop offset="1" stop-color="#f7fbff"/></linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#2563eb"/></marker>
+  </defs>
+  <rect width="1200" height="300" rx="24" fill="url(#bg)"/>
+  <g font-family="Inter,Arial,sans-serif" text-anchor="middle">
+    <g fill="#fff" stroke="#bfd3f4" stroke-width="2">
+      <rect x="35" y="92" width="190" height="100" rx="16"/><rect x="260" y="92" width="190" height="100" rx="16"/>
+      <rect x="485" y="92" width="190" height="100" rx="16"/><rect x="710" y="92" width="190" height="100" rx="16"/>
+      <rect x="935" y="92" width="230" height="100" rx="16"/>
+    </g>
+    <g fill="none" stroke="#2563eb" stroke-width="3" marker-end="url(#arrow)"><path d="M225 142H252"/><path d="M450 142H477"/><path d="M675 142H702"/><path d="M900 142H927"/><path d="M1050 201C900 270 300 270 150 201"/></g>
+    <g fill="#172033"><text x="130" y="128" font-size="19" font-weight="700">1 · Đọc</text><text x="130" y="158" font-size="15">file, flow, invariant</text>
+      <text x="355" y="128" font-size="19" font-weight="700">2 · Chạy</text><text x="355" y="158" font-size="15">test hoặc lab thật</text>
+      <text x="580" y="128" font-size="19" font-weight="700">3 · Phá</text><text x="580" y="158" font-size="15">tạo failure/race</text>
+      <text x="805" y="128" font-size="19" font-weight="700">4 · Sửa</text><text x="805" y="158" font-size="15">code + regression test</text>
+      <text x="1050" y="128" font-size="19" font-weight="700">5 · Giải thích</text><text x="1050" y="158" font-size="15">trade-off như phỏng vấn</text>
+    </g>
+  </g>
+</svg>

@@ -1,11 +1,20 @@
 :root { color-scheme: light; font-family: Inter, Aptos, system-ui, sans-serif; color: #172033; background: #f6f8fb; }
 body { margin: 0; line-height: 1.58; }
-main { max-width: 900px; margin: 0 auto; padding: 48px 24px 72px; }
-header { border-bottom: 4px solid #2563eb; margin-bottom: 28px; }
+main { max-width: 980px; margin: 0 auto; padding: 48px 24px 72px; }
+header { border-bottom: 4px solid #2563eb; margin-bottom: 28px; padding-bottom: 18px; }
 h1 { font-size: 2.3rem; line-height: 1.12; margin: 0 0 12px; }
 h2 { margin-top: 34px; color: #1e3a8a; }
 .eyebrow { color: #2563eb; font-weight: 750; text-transform: uppercase; letter-spacing: .08em; font-size: .78rem; }
 .card { background: white; border: 1px solid #dce3ef; border-radius: 12px; padding: 20px; margin: 16px 0; box-shadow: 0 3px 12px #1720330d; }
+.hero-visual { display: block; width: 100%; height: auto; margin: 26px 0 34px; border: 1px solid #dce3ef; border-radius: 18px; background: #fff; }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.grid .card { margin: 0; }
+.step { display: flex; gap: 12px; align-items: flex-start; }
+.step-number { display: inline-grid; place-items: center; flex: 0 0 30px; height: 30px; border-radius: 50%; color: #fff; background: #2563eb; font-weight: 800; }
+.tag { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: .78rem; font-weight: 700; background: #eaf2ff; color: #1e40af; }
+ol.course-list { padding-left: 0; list-style: none; counter-reset: lesson; }
+ol.course-list li { counter-increment: lesson; display: flex; gap: 12px; align-items: baseline; padding: 12px 14px; margin: 8px 0; background: #fff; border: 1px solid #dce3ef; border-radius: 10px; }
+ol.course-list li::before { content: counter(lesson, decimal-leading-zero); color: #2563eb; font-weight: 800; font-variant-numeric: tabular-nums; }
 code, pre { font-family: "Cascadia Code", Consolas, monospace; }
 pre { background: #0f172a; color: #e5edf9; padding: 16px; overflow-x: auto; border-radius: 9px; }
 table { width: 100%; border-collapse: collapse; margin: 16px 0; }
@@ -16,3 +25,4 @@ summary { cursor: pointer; font-weight: 700; }
 .question { border-left: 4px solid #f59e0b; padding-left: 14px; }
 .next { border-left: 4px solid #16a34a; padding-left: 14px; }
 a { color: #1d4ed8; }
+@media (max-width: 700px) { main { padding: 30px 16px 54px; } h1 { font-size: 1.9rem; } .grid { grid-template-columns: 1fr; } .hero-visual { margin: 18px 0 24px; } }
