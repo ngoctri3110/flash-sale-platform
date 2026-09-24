@@ -6,7 +6,7 @@ Chỉ tách khi có boundary ownership, deploy cadence, scale hoặc failure iso
 
 ## Lab hai service
 
-Tạo trong IntelliJ hai Spring Boot project Java 21:
+Chạy source có sẵn trong [microservice request lab](../../playbooks/09-microservice-request-lab/README.md), hoặc tạo lại trong IntelliJ hai Spring Boot project Java 21:
 
 1. `catalog-service`: `GET /products/{id}`.
 2. `order-service`: `POST /orders`, gọi catalog qua `WebClient`/HTTP client có timeout 500 ms.
