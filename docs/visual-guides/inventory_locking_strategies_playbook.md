@@ -4,7 +4,7 @@
 
 Stock = 8, có 24 request cùng mua 1 món. Dù chọn cách nào, invariant phải luôn đúng:
 
-> `accepted + rejected = attempts` và `final_quantity >= 0`.
+> `accepted + rejected = attempts`, `final_quantity >= 0`, và `initial_quantity = accepted_quantity + final_quantity` (lab không có restock/refund).
 
 Không chọn strategy vì “nghe enterprise”. Chọn sau khi biết rule cần bảo vệ, mức conflict và retry/latency có chấp nhận được hay không.
 

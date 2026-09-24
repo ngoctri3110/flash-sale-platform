@@ -6,7 +6,8 @@ Yêu cầu Java 21. Không cần Maven, Spring hay Docker.
 cd playbooks/05-java-concurrency-lab
 New-Item -ItemType Directory -Force out | Out-Null
 javac --release 21 -d out src/main/java/com/ngoctri/playbook/RaceConditionLab.java
-java -cp out com.ngoctri.playbook.RaceConditionLab
+java -cp out com.ngoctri.playbook.RaceConditionLab virtual
+java -cp out com.ngoctri.playbook.RaceConditionLab fixed
 ```
 
 `Unsafe count` thường nhỏ hơn `1,000,000`; kết quả có thể khác mỗi lần chạy vì thread scheduling không deterministic. `Synchronized` và `AtomicInteger` phải ra đúng `1,000,000`.
@@ -25,8 +26,8 @@ Hai virtual thread có thể cùng read `42`, cùng write `43`: một increment 
 
 1. Chạy 5 lần, ghi unsafe result.
 2. Đổi `TASKS` thành 1: vì sao unsafe lại đúng?
-3. Đổi virtual thread executor thành `Executors.newFixedThreadPool(8)`: correctness thay đổi không, throughput/scheduling có thể thay đổi gì?
-4. Bỏ `start.await()`: race biến mất hoàn toàn không, tại sao không nên kết luận từ một lần run?
+3. So sánh hai lệnh `virtual` và `fixed`: correctness thay đổi không, throughput/scheduling có thể thay đổi gì?
+4. Đọc code `CountDownLatch`: vì sao phát tín hiệu sau khi submit task không làm fixed pool bị treo?
 5. Thay `AtomicInteger` bằng `volatile int`: giải thích tại sao vẫn sai. `volatile` tạo visibility, không biến read-modify-write thành atomic.
 
 ## Liên hệ backend nhiều replica

@@ -58,7 +58,7 @@ Kết quả: `available_quantity = 0` nhưng `accepted_quantity = 2`. Database c
 
 ## Phần 2 — Sửa bằng conditional atomic UPDATE
 
-Reset lại. Trong **A**, chạy:
+Reset lại. Trong **A**, chạy và giữ transaction mở sau câu `UPDATE`:
 
 ```sql
 BEGIN;
@@ -68,10 +68,25 @@ WHERE product_id = 1
   AND available_quantity >= 1;
 -- psql phải báo UPDATE 1. Khi đó mới được INSERT order.
 INSERT INTO orders (product_id, quantity) VALUES (1, 1);
+```
+
+Trong **B**, chỉ chạy phần dưới đây. Không copy câu `INSERT` của A:
+
+```sql
+BEGIN;
+UPDATE inventories
+SET available_quantity = available_quantity - 1
+WHERE product_id = 1
+  AND available_quantity >= 1;
+```
+
+B sẽ đợi row lock của A. Quay lại **A** và commit:
+
+```sql
 COMMIT;
 ```
 
-Trong **B**, chạy đúng block tương tự. PostgreSQL có thể đợi row lock của A. Sau A commit, B re-check điều kiện; lần này `UPDATE 0`. Khi `UPDATE 0`, **rollback và không INSERT order**:
+Quay lại **B**. PostgreSQL re-check predicate sau khi lock được nhả; B phải báo `UPDATE 0`. Khi đó **không được INSERT order** và chạy:
 
 ```sql
 ROLLBACK;
