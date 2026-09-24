@@ -9,3 +9,5 @@ frontend/dist/
 .env
 .env.*
 !.env.example
+# Maven build output for standalone learning labs
+playbooks/**/target/
