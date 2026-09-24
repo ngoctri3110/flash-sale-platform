@@ -24,5 +24,21 @@ details { background: #eff6ff; border-radius: 8px; padding: 12px; margin: 10px 0
 summary { cursor: pointer; font-weight: 700; }
 .question { border-left: 4px solid #f59e0b; padding-left: 14px; }
 .next { border-left: 4px solid #16a34a; padding-left: 14px; }
+.chapter { border-top: 6px solid #2563eb; margin-top: 44px; padding-top: 12px; }
+.callout { border-left: 5px solid #2563eb; background: #eef5ff; padding: 14px 18px; border-radius: 8px; margin: 16px 0; }
+.pain { border-left-color: #dc2626; background: #fff1f2; }
+.practice { border-left-color: #16a34a; background: #f0fdf4; }
+.answer { border-left-color: #f59e0b; background: #fffbeb; }
+.lesson-toc { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 0; background: #f6f8fb; border-bottom: 1px solid #dce3ef; }
+.lesson-toc a { padding: 5px 10px; border: 1px solid #bfd3f4; border-radius: 999px; background: #fff; text-decoration: none; font-size: .88rem; }
+.flow-figure { margin: 20px 0; padding: 18px; background: #fff; border: 1px solid #dce3ef; border-radius: 12px; }
+.flow-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; list-style: none; padding: 0; margin: 0; }
+.flow-steps li { position: relative; padding: 13px; min-height: 48px; border-radius: 9px; background: #eef5ff; color: #1e3a8a; font-weight: 650; }
+.flow-steps li:not(:last-child)::after { content: "→"; position: absolute; right: -17px; top: 12px; color: #2563eb; font-size: 1.3rem; }
+figcaption { margin-top: 12px; color: #526176; font-size: .9rem; }
+footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid #dce3ef; color: #526176; }
+.steps { counter-reset: step; list-style: none; padding: 0; }
+.steps li { counter-increment: step; display: grid; grid-template-columns: 34px 1fr; gap: 10px; margin: 12px 0; }
+.steps li::before { content: counter(step); display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #2563eb; color: #fff; font-weight: 800; }
 a { color: #1d4ed8; }
-@media (max-width: 700px) { main { padding: 30px 16px 54px; } h1 { font-size: 1.9rem; } .grid { grid-template-columns: 1fr; } .hero-visual { margin: 18px 0 24px; } }
+@media (max-width: 700px) { main { padding: 30px 16px 54px; } h1 { font-size: 1.9rem; } .grid { grid-template-columns: 1fr; } .hero-visual { margin: 18px 0 24px; } .flow-steps { grid-template-columns: 1fr; } .flow-steps li:not(:last-child)::after { content: "↓"; right: auto; left: 50%; top: auto; bottom: -21px; } }

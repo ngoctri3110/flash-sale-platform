@@ -1,18 +1,43 @@
-<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bài 0001 — Transaction boundary</title><link rel="stylesheet" href="../assets/lesson.css"></head><body><main>
-<header id="course-navigation"><p class="eyebrow">Flash Sale learning workspace · 10 phút</p><h1>Bài 0001 — Transaction boundary và atomic decrement</h1><p>Mission: chứng minh concurrent purchase không oversell bằng code và test thật.</p><p><a href="../reference/learning-map.html">Course map</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="#practice">Practice</a></p></header>
-<h2>Tangible win</h2><p>Bạn có thể giải thích tại sao Order, inventory decrement và outbox phải commit hoặc rollback cùng nhau.</p>
-<div class="card"><strong>Flow:</strong> validate → idempotency → read active Product → atomic decrement → insert Order → append outbox → commit. Một runtime exception ở bất kỳ bước nào rollback các database write trước đó.</div>
-<h2>Critical statement</h2><pre><code>UPDATE inventories SET available_quantity = available_quantity - :quantity
-WHERE product_id = :productId AND available_quantity &gt;= :quantity</code></pre>
-<p>Check và decrement là một statement ở PostgreSQL, nên không có lost update giữa hai request. Đọc <a href="../backend/src/main/java/com/ngoctri/flashsale/order/application/PlaceOrder.java">PlaceOrder</a> và <a href="../backend/src/main/java/com/ngoctri/flashsale/order/infrastructure/persistence/JdbcOrderPlacementStore.java">JDBC store</a>.</p>
-<h2>Giải thích từ mid đến senior</h2><p><strong>Transaction</strong> (giao dịch) là “gói thay đổi”: hoặc tất cả thay đổi database có hiệu lực, hoặc không thay đổi nào có hiệu lực. Trong project, gói đó là: trừ tồn kho, ghi Order, ghi outbox. <strong>Transaction boundary</strong> (ranh giới transaction) là nơi gói bắt đầu/kết thúc: method <code>PlaceOrder.place()</code>.</p>
-<p>Sai lầm mid-level phổ biến là viết: đọc stock = 1 → <code>if (stock &gt; 0)</code> → update stock = 0. Hai request có thể cùng đọc 1 trước khi request nào update. Hai Order được accept: đó là <strong>lost update</strong> (một cập nhật bị che mất) và business thấy oversell.</p>
-<p>Atomic update chuyển điều kiện business vào chính câu write. PostgreSQL sẽ re-check predicate khi row lock được lấy; request thứ hai không còn đủ stock sẽ update 0 row. Đây là điều quan trọng hơn annotation: <code>@Transactional</code> tạo commit/rollback, nhưng không tự biến read-then-write thành atomic.</p>
-<div class="card"><strong>Khi nào không đủ?</strong> Nếu quyết định phải kiểm tra nhiều row hoặc rule phức tạp, một câu atomic SQL có thể khó đọc. Khi đó cân nhắc pessimistic locking, optimistic versioning, hoặc redesign aggregate — nhưng luôn nêu invariant và contention cost trước khi chọn.</div>
-<h2>Câu trả lời phỏng vấn mẫu</h2><p><strong>“Làm sao chống oversell?”</strong> — “Tôi không dựa vào kiểm tra stock trong application. Tôi dùng conditional update ở PostgreSQL với predicate stock đủ. Affected row count là kết quả cạnh tranh: 1 là accept, 0 là insufficient stock. Tôi đặt decrement, Order và outbox trong một transaction để failure sau decrement rollback tồn kho. Tôi chứng minh bằng PostgreSQL integration test chạy 100 request đồng thời.”</p>
-<h2 id="practice">Practice</h2><pre><code>cd backend
-.\mvnw.cmd -Dtest=OrderApiIntegrationTest test</code></pre><p>Tìm test 100 request/10 stock. Dự đoán: bao nhiêu HTTP 201, 409, Order và outbox record?</p>
-<details><summary>Đáp án</summary><p>10 accepted, 90 insufficient-stock, stock cuối 0, 10 Order và 10 outbox record.</p></details>
-<h2>Phản biện senior</h2><ol><li>Vì sao Java <code>synchronized</code> không giải quyết được nhiều backend replica?</li><li>Điều gì sẽ xảy ra nếu transaction gọi payment/Kafka qua network?</li><li>Atomic update có thể block không? Nếu có, khác gì pessimistic lock?</li></ol>
-<p>Reference: <a href="../reference/order-transaction-and-idempotency.html">Order transaction quick reference</a>.</p><p class="next">Tiếp theo: <a href="0002-idempotency-replay-and-rollback.html">Bài 0002 — Idempotency, replay và rollback</a>. Primary source: <a href="https://docs.spring.io/spring-framework/reference/data-access/transaction.html">Spring transaction management</a>. Hỏi mình bất kỳ phần nào chưa rõ.</p>
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bài 1 · Transaction: vì sao trừ tồn kho rồi vẫn có thể rollback?</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body class="lesson-page"><main>
+<header>
+<p class="eyebrow">Flash Sale · Bài 01 · đọc 10–15 phút, thực hành 30–60 phút</p>
+<h1>Transaction: vì sao trừ tồn kho rồi vẫn có thể rollback?</h1><p>Tự phân biệt hai việc: chống bán vượt và hoàn tác một lần đặt hàng bị lỗi.</p>
+<p><a href="../index.html">Trang học</a> · <a href="../reference/learning-map.html">Mục lục</a></p>
+</header>
+<nav class="lesson-toc" aria-label="Trong bài"><a href="#problem">Tình huống</a><a href="#mechanism">Cơ chế</a><a href="#practice">Thực hành</a><a href="#check">Tự kiểm tra</a></nav>
+<section id="problem"><h2>1. Tình huống cần giải quyết</h2><p class="callout pain">Kho còn một bàn phím. A và B cùng đọc số 1, cùng ghi số 0, rồi mỗi người nhận một Order. Stock không âm nhưng đã bán hai món. Sau đó một lỗi khác xuất hiện: trừ stock thành công, INSERT Order thất bại.</p>
+<p><strong>Trước khi đọc tiếp:</strong> viết một dự đoán về nguyên nhân và kết quả đúng. Sau khi chạy lab, đối chiếu dự đoán.</p></section>
+<section id="mechanism"><h2>2. Hiểu cơ chế bằng một ví dụ</h2>
+<p><strong>Invariant</strong> là điều luôn phải đúng. Khi không nhập/hoàn hàng: <code>tồn đầu = tổng quantity của Order được chấp nhận + tồn cuối</code>. Chỉ kiểm tra stock không âm sẽ bỏ sót lỗi trên.</p><p><strong>Atomic conditional update</strong> gộp kiểm tra và trừ stock vào một câu SQL. <strong>Transaction</strong> gộp nhiều lần ghi thành một quyết định commit/rollback. Ta cần cả hai: atomic update chống cạnh tranh; transaction bảo vệ các bước theo sau.</p>
+<figure class="flow-figure"><ol class="flow-steps"><li>Controller gọi Spring proxy</li><li>Proxy mở/tham gia transaction</li><li>Trừ Inventory → INSERT Order → INSERT outbox</li><li>Proxy commit; lỗi phù hợp rollback rule → rollback</li></ol><figcaption>Thứ tự quan sát trong bài; đọc từ trái sang phải, hoặc trên xuống dưới trên điện thoại.</figcaption></figure>
+<pre><code>UPDATE inventories
+SET available_quantity = available_quantity - :quantity
+WHERE product_id = :productId
+  AND available_quantity &gt;= :quantity;</code></pre>
+<p>Với product đã được kiểm tra tồn tại và quantity hợp lệ, affected rows = 1 cho phép tạo Order; = 0 là không đủ hàng. Ở PostgreSQL Read Committed, B đợi A giữ row lock. A commit thì B kiểm tra lại WHERE trên row mới; A rollback thì stock cũ được phục hồi. Ở isolation cao hơn, có thể gặp serialization failure và phải retry toàn transaction.</p>
+<details><summary>Đào sâu: điều kiện đúng và giới hạn của cách làm</summary><p><code>@Transactional</code> có hiệu lực khi gọi qua Spring proxy. Tự gọi method trong cùng instance thường không đi qua proxy. Mặc định RuntimeException/Error làm rollback; checked exception cần rule phù hợp. Bắt lỗi rồi trả bình thường có thể khiến transaction commit nếu chưa bị đánh dấu rollback-only.</p><p>Không gọi HTTP/payment khi đang giữ lock tồn kho: thời gian chờ mạng trở thành thời gian request khác chờ row. Rollback DB cũng không hoàn tác email đã gửi hoặc HTTP call đã thành công.</p></details>
+</section>
+<section id="practice"><h2>3. Thực hành có điểm dừng kiểm tra</h2>
+<p><strong>Chuẩn bị:</strong> JDK 21, Docker Desktop đang chạy và repo đã clone. IntelliJ: Open <code>backend/pom.xml</code>, import Maven, đặt Project SDK/Maven Runner JDK 21. Không cần khởi động Compose cho integration test dùng Testcontainers.</p>
+<ul><li><a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/backend/src/main/java/com/ngoctri/flashsale/order/application/PlaceOrder.java">PlaceOrder.java</a> — place(): ranh giới transaction và thứ tự side effect.</li><li><a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/backend/src/main/java/com/ngoctri/flashsale/order/infrastructure/persistence/JdbcOrderPlacementStore.java">JdbcOrderPlacementStore.java</a> — decrementAvailableQuantity(): SQL và row count.</li></ul>
+<p>Lệnh từ thư mục <code>backend</code> trong PowerShell/IntelliJ Terminal:</p><pre><code>.\mvnw.cmd "-Dtest=OrderApiIntegrationTest#inventoryDecrementRollsBackWhenOrderInsertionFails" test</code></pre>
+<ol class="steps"><li><div>Mở backend/pom.xml bằng IntelliJ, chọn SDK 21, bật Docker Desktop. Mở OrderApiIntegrationTest và chạy test inventoryDecrementRollsBackWhenOrderInsertionFails từ gutter.</div></li><li><div>Đặt breakpoint trước decrement trong PlaceOrder; chạy Debug test. Đi tiếp tới insert và xem exception. Đọc assertions cuối test: stock trở về giá trị đầu, không có Order/outbox thành công.</div></li><li><div>Trong hai terminal làm Lab 01. Giữ A chưa COMMIT, cho B chạy UPDATE; quan sát B chờ. A commit, B UPDATE 0 rồi ROLLBACK.</div></li><li><div>Tự ghi tồn đầu, tổng quantity accepted và tồn cuối. Không suy ra đúng chỉ từ HTTP 201.</div></li></ol>
+<p><a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/playbooks/01-atomic-inventory-lab/README.md">Mở hướng dẫn lab đầy đủ và code mẫu</a>.</p>
+<p class="callout practice"><strong>Bài tự làm:</strong> Trong branch học riêng, bỏ @Transactional trên PlaceOrder và chạy lại đúng rollback test. Ghi bảng các write đã còn lại. Khôi phục annotation và xác nhận test xanh; không chạy thay đổi này vào database demo dùng chung.</p>
+<p>Chỉ cố ý tạo lỗi trên branch học/test database. Ghi diff trước khi sửa và khôi phục đúng thay đổi thử nghiệm sau bài; không dùng reset toàn repo.</p>
+</section>
+<section id="check"><h2>4. Kiểm tra hiểu và phỏng vấn</h2>
+<p class="question">Stock không âm, mọi câu SQL đều chạy trong transaction: đã chắc không oversell chưa?</p><details><summary>Xem đáp án và lý do sau khi tự trả lời</summary><p>Chưa. Transaction read-then-write vẫn có thể dùng cùng giá trị cũ. Phải kiểm chứng lượng đã bán và dùng conditional update/lock/version đúng. Test rollback và test concurrent bảo vệ hai loại lỗi khác nhau.</p></details>
+<p class="callout answer"><strong>Khung trả lời 60 giây:</strong> Tôi đặt decrement, Order và outbox trong một transaction. Điều kiện stock đủ nằm ngay trong UPDATE để chống cạnh tranh, còn rollback xử lý lỗi các bước sau. Tôi chứng minh bằng hai test riêng: đồng thời không bán vượt và lỗi INSERT không làm mất stock.</p>
+<p><strong>Đủ để chuyển bài khi:</strong> bạn giải thích được luồng không nhìn code, chỉ ra một failure, và gửi kết quả test/lab cùng lý do nó chứng minh được điều gì. Chưa chạy thì chưa có evidence để nói “tôi đã kiểm chứng”.</p>
+</section>
+<footer><p>Nguồn kiểm tra: <a href="https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/annotations.html">Spring: transaction proxy và rollback rules</a>. Các đoạn rút gọn/pseudocode dùng để giải thích; source liên kết là bản đầy đủ của repo.</p><p class="next"><a href="0002-idempotency-replay-and-rollback.html">Bài tiếp theo →</a> · Ôn lại sau 1, 3 và 7 ngày: tự vẽ flow, không đọc đáp án trước.</p></footer>
 </main></body></html>

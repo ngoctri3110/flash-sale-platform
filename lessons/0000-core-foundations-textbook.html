@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Giáo trình lõi · Senior Spring Boot</title><link rel="stylesheet" href="../assets/lesson.css"></head>
+<body><main>
+<header><p class="eyebrow">Core textbook · học bằng sự cố</p><h1>7 bài lõi để hiểu Flash Sale từ request đến event</h1><p>Đây là bản học chậm và có hướng dẫn của các bài 0001–0007. Mỗi chương trả lời bốn câu: hệ thống đau ở đâu, code nào giải quyết, làm sao chứng minh, và nói thế nào khi phỏng vấn.</p><p><a href="../reference/learning-map.html">Learning map</a> · <a href="../docs/learning/senior-practical-track.md">Practical track trên GitHub</a></p></header>
+
+<div class="callout"><strong>Cách học:</strong> đọc phần “Nỗi đau”, dừng lại dự đoán trước khi xem code, chạy đúng lệnh, cố ý làm hỏng một dòng, rồi trả lời câu hỏi ở cuối chương. Nếu chỉ đọc, bạn mới biết thuật ngữ; nếu tạo được failure và sửa bằng test, bạn mới biết cơ chế.</div>
+
+<section class="chapter" id="transaction"><p class="eyebrow">Chương 1 · Bài 0001</p><h2>Transaction boundary và atomic inventory</h2>
+<div class="callout pain"><strong>Nỗi đau:</strong> hai request cùng thấy stock = 1 và cùng tạo order. Stock cuối có thể không âm nhưng doanh nghiệp đã bán hai món.</div>
+<p><strong>Transaction</strong> là một nhóm thay đổi database cùng thành công hoặc cùng thất bại. Trong project, nhóm đó là: giảm Inventory, tạo Order và tạo Outbox event. <strong>Atomic update</strong> đặt điều kiện “còn đủ hàng” ngay trong câu lệnh ghi.</p>
+<pre><code>UPDATE inventories
+SET available_quantity = available_quantity - :quantity
+WHERE product_id = :productId
+  AND available_quantity &gt;= :quantity;</code></pre>
+<p>Database trả affected rows. `1` nghĩa là request đã reserve; `0` nghĩa là không đủ hàng. `@Transactional` bảo vệ rollback/commit, nhưng không biến đoạn `SELECT → if → UPDATE` thành atomic.</p>
+<ol class="steps"><li>Đọc <a href="../backend/src/main/java/com/ngoctri/flashsale/order/application/PlaceOrder.java">PlaceOrder</a>; khoanh vùng method có <code>@Transactional</code>.</li><li>Đọc <a href="../backend/src/main/java/com/ngoctri/flashsale/order/infrastructure/persistence/JdbcOrderPlacementStore.java">JdbcOrderPlacementStore</a>; tìm câu update và giá trị boolean từ row count.</li><li>Chạy <a href="../playbooks/01-atomic-inventory-lab/README.md">Lab 01</a>; ở phần sai tạo 2 accepted orders với stock ban đầu 1.</li><li>Reset lab, chạy phần atomic; B phải nhận <code>UPDATE 0</code> và không được insert order.</li><li>Chạy integration test concurrency; kiểm tra <code>initial = accepted + final</code>.</li></ol>
+<div class="callout practice"><strong>Tự làm lại:</strong> viết một method `reserve(productId, quantity)` bằng JDBC trong scratch package. Viết test cho stock 1 với hai task đồng thời. Sau đó đổi thành read-then-write để test đỏ.</div>
+<div class="callout answer"><strong>Phỏng vấn:</strong> “Tôi bảo vệ invariant bằng conditional update ở PostgreSQL; affected row 1/0 là kết quả cạnh tranh. Decrement, Order và outbox cùng transaction để lỗi sau decrement rollback. Tôi chứng minh bằng PostgreSQL concurrency test, không dựa vào `synchronized` trong một JVM.”</div>
+</section>
+
+<section class="chapter" id="idempotency"><p class="eyebrow">Chương 2 · Bài 0002</p><h2>Idempotency, replay và rollback</h2>
+<div class="callout pain"><strong>Nỗi đau:</strong> client timeout sau khi server commit. User retry là hành vi bình thường; nếu retry tạo order thứ hai thì hệ thống tính tiền hoặc trừ stock hai lần.</div>
+<p>Idempotency nghĩa là cùng actor + cùng key + cùng payload sẽ trả cùng kết quả business mà không lặp side effect. Project dùng advisory transaction lock để serialize cùng key và unique constraint để bảo vệ database.</p>
+<table><thead><tr><th>Tình huống</th><th>HTTP</th><th>Side effect</th></tr></thead><tbody><tr><td>Lần đầu hợp lệ</td><td>201</td><td>Tạo một Order/stock decrement/outbox</td></tr><tr><td>Cùng key, cùng payload</td><td>200 replay</td><td>Không tạo thêm</td></tr><tr><td>Cùng key, payload khác</td><td>409</td><td>Không tạo thêm</td></tr></tbody></table>
+<ol class="steps"><li>Đọc header <code>Idempotency-Key</code> tại <a href="../backend/src/main/java/com/ngoctri/flashsale/order/api/OrderController.java">OrderController</a>.</li><li>Trong <a href="../backend/src/main/java/com/ngoctri/flashsale/order/application/PlaceOrder.java">PlaceOrder</a>, xác định thứ tự lock → lookup → compare payload → side effect.</li><li>Chạy <a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/playbooks/02-idempotency-replay-lab/README.md">Lab 02 trên GitHub</a> bằng hai terminal.</li><li>Đọc test replay, different payload và rollback trong <a href="../backend/src/test/java/com/ngoctri/flashsale/order/api/OrderApiIntegrationTest.java">OrderApiIntegrationTest</a>.</li></ol>
+<div class="callout practice"><strong>Tự làm lại:</strong> thêm một field vào command, tạo fingerprint payload và test cùng key nhưng khác fingerprint trả conflict. Ghi retention/expiry policy của key.</div>
+<div class="callout answer"><strong>Phỏng vấn:</strong> “Unique constraint bảo vệ integrity nhưng không đủ cho replay semantics. Tôi lock cùng logical key trong transaction, trả order gốc nếu payload giống, conflict nếu khác. Idempotency không thay authentication.”</div>
+</section>
+
+<section class="chapter" id="locking"><p class="eyebrow">Chương 3 · Bài 0003</p><h2>Atomic, pessimistic và optimistic locking</h2>
+<div class="callout pain"><strong>Nỗi đau:</strong> chọn `@Version` theo thói quen rồi tạo retry storm cho một SKU nóng, hoặc giữ `FOR UPDATE` trong lúc gọi mạng làm cả hàng đợi bị block.</div>
+<table><thead><tr><th>Strategy</th><th>Cơ chế</th><th>Khi dùng</th></tr></thead><tbody><tr><td>Atomic</td><td>Một conditional UPDATE, row count là outcome</td><td>Một row, rule đơn giản, hot path</td></tr><tr><td>Pessimistic</td><td>Đọc sau <code>FOR UPDATE</code>, request khác chờ</td><td>Nhiều rule trong transaction ngắn</td></tr><tr><td>Optimistic</td><td>Version compare-and-set, conflict thì retry</td><td>Conflict hiếm, retry rẻ</td></tr></tbody></table>
+<ol class="steps"><li>Đặt invariant: <code>initial = accepted + final</code>, stock không âm.</li><li>Chạy <a href="../backend/src/test/java/com/ngoctri/flashsale/inventory/infrastructure/persistence/InventoryConcurrencyStrategyLabIntegrationTest.java">strategy lab</a> với stock 8, 24 attempts.</li><li>Ghi accepted, rejected, p95, retries và lock-wait samples; đừng so sánh chỉ bằng average.</li><li>Đổi workload thành một SKU cực nóng; dự đoán optimistic retry tăng thế nào.</li></ol>
+<div class="callout practice"><strong>Cố ý tạo lỗi:</strong> thêm sleep trong pessimistic transaction và quan sát lock wait; bỏ điều kiện version trong optimistic update và viết test chứng minh lost update.</div>
+<div class="callout answer"><strong>Phỏng vấn:</strong> “Tôi chọn theo invariant và contention. Atomic là default cho decrement một row; pessimistic cho quyết định nhiều bước ngắn; optimistic cho conflict hiếm. Virtual thread không làm hot-row lock biến mất.”</div>
+</section>
+
+<section class="chapter" id="jpa"><p class="eyebrow">Chương 4 · Bài 0004</p><h2>JPA N+1 và fetch plan</h2>
+<div class="callout pain"><strong>Nỗi đau:</strong> một page có 20 Order nhưng mapper chạm Product lazy từng dòng. Database nhận 1 + N query; page lớn dần thì latency tăng theo dữ liệu.</div>
+<p>Với 4 Order: một query lấy list + tối đa bốn query Product = 5. Vòng lặp Java không phải query; lazy association access mới phát query.</p>
+<ol class="steps"><li>Chạy <a href="../backend/src/test/java/com/ngoctri/flashsale/product/infrastructure/persistence/NPlusOneQueryLabIntegrationTest.java">NPlusOneQueryLabIntegrationTest</a>.</li><li>Dự đoán statement count cho lazy loop, fetch join, EntityGraph, batch và projection.</li><li>Đọc <a href="../backend/src/main/java/com/ngoctri/flashsale/product/infrastructure/persistence/ProductJpaRepository.java">ProductJpaRepository</a>; list API dùng DTO projection.</li><li>Đặt query budget regression; không chữa bằng bật EAGER toàn cục.</li></ol>
+<div class="callout practice"><strong>Tự làm lại:</strong> tạo list projection chỉ gồm id/name/price, rồi viết test fail khi mapper chạm association ngoài fetch plan.</div>
+<div class="callout answer"><strong>Phỏng vấn:</strong> “List API ưu tiên projection; detail graph nhỏ dùng fetch join/EntityGraph; batch là fallback. Tôi đo statement count và giữ regression budget, không bật EAGER global.”</div>
+</section>
+
+<section class="chapter" id="api"><p class="eyebrow">Chương 5 · Bài 0005</p><h2>Validation và Problem Details</h2>
+<div class="callout pain"><strong>Nỗi đau:</strong> frontend phải đoán message lỗi, support không nối được request với log, và lỗi business bị trả như 500.</div>
+<p>Ba lớp có vai trò khác nhau: request shape (`@Min`, `@NotNull`), business state (Product active/stock đủ), database constraint (unique/check/foreign key). Problem Details chuẩn hóa type/title/status/detail; project thêm code/fieldErrors/traceId.</p>
+<ol class="steps"><li>Đọc <a href="../backend/src/main/java/com/ngoctri/flashsale/shared/api/ApiExceptionHandler.java">ApiExceptionHandler</a>.</li><li>Gửi quantity 0, thiếu Idempotency-Key, product không tồn tại và stock không đủ.</li><li>Ghi expected status/code/fieldErrors trước khi xem test.</li><li>Thêm một validation field và test response JSON; không leak stack trace/SQL.</li></ol>
+<div class="callout answer"><strong>Phỏng vấn:</strong> “Tôi tách malformed request khỏi business conflict, dùng error code ổn định và trace ID. Validation làm client feedback tốt; constraint và transaction vẫn bảo vệ correctness.”</div>
+</section>
+
+<section class="chapter" id="sql"><p class="eyebrow">Chương 6 · Bài 0006</p><h2>Schema, Flyway, index và pagination</h2>
+<div class="callout pain"><strong>Nỗi đau:</strong> sửa migration đã chạy làm checksum mismatch; thêm index theo cảm giác làm write chậm; page sâu bằng OFFSET timeout.</div>
+<ol class="steps"><li>Đọc V3/V4 migration và truy vấn trong <a href="../backend/src/main/java/com/ngoctri/flashsale/order/infrastructure/persistence/JdbcOrderQuery.java">JdbcOrderQuery</a>.</li><li>Chạy <a href="../playbooks/07-postgresql-query-plan-lab/README.md">EXPLAIN lab</a> trước/sau composite index.</li><li>Giải thích vì sao equality filter đứng trước sort keys và vì sao <code>id</code> là tie-breaker.</li><li>So sánh offset với keyset trên page sâu; ghi execution time/buffers.</li></ol>
+<div class="callout answer"><strong>Phỏng vấn:</strong> “Index phải phục vụ query shape WHERE + ORDER BY; tôi chứng minh bằng EXPLAIN ANALYZE và tính write overhead. Migration dùng expand-contract, không sửa version đã chạy.”</div>
+</section>
+
+<section class="chapter" id="outbox"><p class="eyebrow">Chương 7 · Bài 0007</p><h2>Transactional Outbox và Kafka</h2>
+<div class="callout pain"><strong>Nỗi đau:</strong> database commit nhưng Kafka down làm mất event, hoặc Kafka nhận event trước khi database rollback.</div>
+<pre><code>transaction: inventory + order + outbox → COMMIT
+publisher: claim → send Kafka → mark published
+consumer: deduplicate eventId → side effect → acknowledge</code></pre>
+<ol class="steps"><li>Đọc <a href="../backend/src/main/java/com/ngoctri/flashsale/messaging/infrastructure/JdbcOutboxEventStore.java">claim/lease</a>.</li><li>Chạy <a href="../backend/src/test/java/com/ngoctri/flashsale/messaging/OutboxPublisherIntegrationTest.java">publisher test</a> và vẽ failure timeline.</li><li>Đọc consumer và processed-events table; gửi duplicate event để thấy side effect chỉ một lần.</li><li>Thiết kế retry/backoff/DLT cho transient và poison message.</li></ol>
+<div class="callout answer"><strong>Phỏng vấn:</strong> “Outbox giải quyết dual-write loss, không tạo exactly-once end-to-end. Transport at-least-once nên consumer phải idempotent; claim lease và DLT làm failure có thể vận hành.”</div>
+</section>
+
+<div class="callout practice"><strong>Capstone:</strong> không chuyển sang microservices cho đến khi bạn tự vẽ và giải thích được bảy flow trên. Sau đó làm <a href="../playbooks/09-microservice-request-lab/README.md">Lab hai service</a>, rồi mới thêm timeout/config/gateway/resilience từng failure một.</div>
+</main></body></html>

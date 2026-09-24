@@ -1,14 +1,45 @@
-<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bài 0003 — Inventory concurrency</title><link rel="stylesheet" href="../assets/lesson.css"></head><body><main>
-<header id="course-navigation"><p class="eyebrow">Flash Sale learning workspace · 10–15 phút</p><h1>Bài 0003 — Atomic, pessimistic và optimistic locking</h1><p>Mission: chọn concurrency strategy bằng invariant và evidence, không theo annotation quen tay.</p><p><a href="0002-idempotency-replay-and-rollback.html">Previous</a> · <a href="../reference/learning-map.html">Course map</a> · <a href="../reference/glossary.html">Glossary</a></p></header>
-<h2>Shared contract</h2><p>Stock = 8, 24 request cùng lúc, quantity = 1. Mọi strategy phải có 8 accepted, 16 rejected, stock cuối = 0.</p>
-<table><thead><tr><th>Strategy</th><th>Contention cost</th><th>Production use</th></tr></thead><tbody><tr><td>Atomic conditional update</td><td>Short database row-write wait</td><td>Yes: simple one-row invariant</td></tr><tr><td>Pessimistic <code>FOR UPDATE</code></td><td>Lock wait and deadlock discipline</td><td>Reference/lab</td></tr><tr><td>Optimistic version CAS</td><td>Retries and tail latency</td><td>Reference/lab</td></tr></tbody></table>
-<h2>Giải thích từng chiến lược</h2><p><strong>Atomic conditional update</strong>: database làm check + write trong một bước. Đây là ít “moving parts” nhất khi rule là “stock phải đủ”.</p><p><strong>Pessimistic locking</strong>: <code>SELECT ... FOR UPDATE</code> nói “tôi sẽ quyết định trên row này, hãy để request khác chờ”. Nó đúng, nhưng transaction phải thật ngắn; gọi remote service khi đang giữ lock làm cả hàng đợi chậm và tăng deadlock risk.</p><p><strong>Optimistic locking</strong>: đọc <code>version</code>, update chỉ nếu version chưa đổi. Không chờ lock tại thời điểm đọc, nhưng request thua phải đọc lại và retry. Với hot SKU, nhiều request cùng thua: throughput bị tiêu vào retry và p95 tăng.</p>
-<p><strong>p95 latency</strong> là latency mà 95% request không vượt quá; nó cho biết tail experience tốt hơn average. <strong>Lock-wait sample</strong> là quan sát theo thời điểm, không phải bằng chứng tuyệt đối không có wait. <strong>Retry budget</strong> là giới hạn retry; không được retry vô hạn vì khi DB quá tải nó làm overload nặng hơn.</p>
-<h2>Câu trả lời phỏng vấn mẫu</h2><p><strong>“Khi nào chọn optimistic?”</strong> — “Khi conflict hiếm và retry rẻ, ví dụ user profile edit phân tán. Tôi không chọn nó mặc định cho flash-sale hot stock vì many writers cùng một row tạo retry storm. Với invariant decrement đơn giản, conditional update ở DB rõ ràng hơn và không cần application retry.”</p>
-<h2>Practice</h2><pre><code>cd backend
-.\mvnw.cmd -Dtest=InventoryConcurrencyStrategyLabIntegrationTest test</code></pre><p>Trước khi chạy, dự đoán retries của từng strategy. Sau khi chạy, đọc p95, retries và lock-wait samples; chúng là observation theo máy, không phải universal threshold.</p>
-<details><summary>Self-check</summary><p>Atomic cần ít application coordination nhất. Pessimistic serialize request bằng waiting. Optimistic detect conflict và retry; do đó hot stock tạo retry storm.</p></details>
-<h2>Phản biện senior</h2><ol><li>Vì sao atomic update vẫn có thể chờ row lock nhưng vẫn ít phức tạp hơn pessimistic flow?</li><li>Deadlock xuất hiện thế nào khi transaction lock hai product theo thứ tự khác nhau?</li><li>Metrics nào cần alert ngoài p95 và retries?</li></ol>
-<p>Reference: <a href="../reference/inventory-concurrency.html">Inventory concurrency quick reference</a> · Implementation: <a href="../backend/src/test/java/com/ngoctri/flashsale/inventory/infrastructure/persistence/InventoryConcurrencyStrategyLabIntegrationTest.java">PostgreSQL lab</a>.</p>
-<p class="next">Tiếp theo: /teach bài 4: JPA N+1 và DTO projection. Hãy gửi câu trả lời: vì sao optimistic có thể p95 cao dù không block read?</p>
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bài 3 · Locking: chờ trước hay phát hiện xung đột sau?</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body class="lesson-page"><main>
+<header>
+<p class="eyebrow">Flash Sale · Bài 03 · đọc 10–15 phút, thực hành 30–60 phút</p>
+<h1>Locking: chờ trước hay phát hiện xung đột sau?</h1><p>Chọn một trong ba cơ chế từ invariant và mức cạnh tranh; biết đọc giới hạn của benchmark.</p>
+<p><a href="../index.html">Trang học</a> · <a href="../reference/learning-map.html">Mục lục</a> · <a href="0002-idempotency-replay-and-rollback.html">← Bài trước</a></p>
+</header>
+<nav class="lesson-toc" aria-label="Trong bài"><a href="#problem">Tình huống</a><a href="#mechanism">Cơ chế</a><a href="#practice">Thực hành</a><a href="#check">Tự kiểm tra</a></nav>
+<section id="problem"><h2>1. Tình huống cần giải quyết</h2><p class="callout pain">Một product nóng nhận hàng trăm người mua. Dùng version rồi retry liên tục có thể tạo nhiều query thất bại; khóa trước nhưng giữ quá lâu lại làm request xếp hàng.</p>
+<p><strong>Trước khi đọc tiếp:</strong> viết một dự đoán về nguyên nhân và kết quả đúng. Sau khi chạy lab, đối chiếu dự đoán.</p></section>
+<section id="mechanism"><h2>2. Hiểu cơ chế bằng một ví dụ</h2>
+<p><strong>Pessimistic</strong> lấy khóa trước khi ra quyết định. <strong>Optimistic</strong> đọc bình thường, khi ghi mới kiểm tra version đã đổi chưa. Cả optimistic UPDATE và atomic UPDATE vẫn dùng khóa database lúc ghi; “optimistic” không có nghĩa là không bao giờ chờ.</p><table><tr><th>Cách</th><th>Giá phải trả</th><th>Hợp bài toán</th></tr><tr><td>Conditional UPDATE</td><td>Chờ row ngắn, outcome qua row count</td><td>Trừ quota một row</td></tr><tr><td>FOR UPDATE</td><td>Giữ lock qua nhiều bước</td><td>Quyết định cần đọc state trong transaction ngắn</td></tr><tr><td>Version</td><td>Conflict, re-read, retry</td><td>Chỉnh sửa ít xung đột</td></tr></table>
+<figure class="flow-figure"><ol class="flow-steps"><li>Đọc state/version</li><li>Quyết định</li><li>Write có điều kiện</li><li>Success hoặc conflict → bounded retry</li></ol><figcaption>Thứ tự quan sát trong bài; đọc từ trái sang phải, hoặc trên xuống dưới trên điện thoại.</figcaption></figure>
+<pre><code>-- Optimistic: đã đọc version = 7
+UPDATE inventories
+SET available_quantity = available_quantity - 1,
+    version = version + 1
+WHERE product_id = 1 AND version = 7
+  AND available_quantity &gt;= 1;</code></pre>
+<p>Hai request cùng đọc version 7: một request ghi thành 8. Request còn lại UPDATE 0. Nó phải đọc lại để phân biệt hết hàng với version conflict; không được retry mù từ snapshot cũ. Với JPA @Version, sau optimistic failure cần transaction mới để retry an toàn.</p>
+<details><summary>Đào sâu: điều kiện đúng và giới hạn của cách làm</summary><p>Trong lab, 8 stock và 24 lần mua 1 đơn vị kỳ vọng 8 accept, 16 reject. Bản optimistic lab gộp hết hàng và hết 20 lần retry thành rejected; ứng dụng thực cần phân biệt hai nguyên nhân. Production path chỉ dùng atomic SQL.</p><p>p95 từ 24 mẫu là minh họa, chưa phải load test. Throughput attempts/s gồm cả reject; lockWaitSamples là số lần lấy mẫu thấy chờ, không phải tổng lock time. Muốn chọn strategy cần nhiều lần chạy, cùng data/pool/hardware và tách business reject khỏi lỗi kỹ thuật.</p></details>
+</section>
+<section id="practice"><h2>3. Thực hành có điểm dừng kiểm tra</h2>
+<p><strong>Chuẩn bị:</strong> JDK 21, Docker Desktop đang chạy và repo đã clone. IntelliJ: Open <code>backend/pom.xml</code>, import Maven, đặt Project SDK/Maven Runner JDK 21. Không cần khởi động Compose cho integration test dùng Testcontainers.</p>
+<ul><li><a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/backend/src/test/java/com/ngoctri/flashsale/inventory/infrastructure/persistence/InventoryConcurrencyStrategyLabIntegrationTest.java">InventoryConcurrencyStrategyLabIntegrationTest.java</a> — ba method decrement và runWorkload.</li><li><a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/backend/src/main/java/com/ngoctri/flashsale/order/infrastructure/persistence/JdbcOrderPlacementStore.java">JdbcOrderPlacementStore.java</a> — strategy thực dùng cho Order.</li></ul>
+<p>Lệnh từ thư mục <code>backend</code> trong PowerShell/IntelliJ Terminal:</p><pre><code>.\mvnw.cmd "-Dtest=InventoryConcurrencyStrategyLabIntegrationTest" test</code></pre>
+<ol class="steps"><li><div>Chạy test dưới đây với Docker đang hoạt động. Ghi accepted/rejected trước, metrics sau.</div></li><li><div>Trong IntelliJ đọc atomicDecrement, pessimisticDecrement, optimisticDecrement; đánh dấu autoCommit và commit/rollback.</div></li><li><div>Dự đoán vì sao optimistic có retries nhưng atomic không có application retry trong lab; đối chiếu output thay vì khẳng định run nào cũng có conflict.</div></li><li><div>Chạy workload một request để làm baseline; ghi rõ mọi số đo phụ thuộc máy.</div></li></ol>
+
+<p class="callout practice"><strong>Bài tự làm:</strong> Trong bản lab riêng thêm delay ngắn sau SELECT FOR UPDATE; đo p95. Khôi phục. Tiếp theo viết hai transaction khóa product 1→2 và 2→1 để giải thích deadlock; hướng sửa là thứ tự khóa thống nhất và retry toàn transaction có giới hạn.</p>
+<p>Chỉ cố ý tạo lỗi trên branch học/test database. Ghi diff trước khi sửa và khôi phục đúng thay đổi thử nghiệm sau bài; không dùng reset toàn repo.</p>
+</section>
+<section id="check"><h2>4. Kiểm tra hiểu và phỏng vấn</h2>
+<p class="question">Nếu tất cả request đã được xử lý và stock không âm, có đủ chứng minh đúng không?</p><details><summary>Xem đáp án và lý do sau khi tự trả lời</summary><p>Còn phải kiểm tra initial_quantity = accepted_quantity + final_quantity trong workload không restock/refund. Lost update có thể làm stock không âm dù bán vượt. Khi thử nhiều quantity, đếm tổng quantity, không chỉ số Order.</p></details>
+<p class="callout answer"><strong>Khung trả lời 60 giây:</strong> Tôi chọn atomic update cho rule một row đơn giản; FOR UPDATE khi cần đọc rồi kiểm tra nhiều bước; version khi conflict hiếm. Tôi giữ transaction ngắn, kiểm tra invariant trước latency và không dùng benchmark nhỏ để hứa capacity production.</p>
+<p><strong>Đủ để chuyển bài khi:</strong> bạn giải thích được luồng không nhìn code, chỉ ra một failure, và gửi kết quả test/lab cùng lý do nó chứng minh được điều gì. Chưa chạy thì chưa có evidence để nói “tôi đã kiểm chứng”.</p>
+</section>
+<footer><p>Nguồn kiểm tra: <a href="https://www.postgresql.org/docs/current/explicit-locking.html">PostgreSQL: row locks và deadlocks</a>. Các đoạn rút gọn/pseudocode dùng để giải thích; source liên kết là bản đầy đủ của repo.</p><p class="next"><a href="0004-jpa-n-plus-one-and-dto-projection.html">Bài tiếp theo →</a> · Ôn lại sau 1, 3 và 7 ngày: tự vẽ flow, không đọc đáp án trước.</p></footer>
 </main></body></html>
