@@ -38,7 +38,9 @@ summary { cursor: pointer; font-weight: 700; }
 figcaption { margin-top: 12px; color: #526176; font-size: .9rem; }
 footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid #dce3ef; color: #526176; }
 .steps { counter-reset: step; list-style: none; padding: 0; }
-.steps li { counter-increment: step; display: grid; grid-template-columns: 34px 1fr; gap: 10px; margin: 12px 0; }
+.steps li { counter-increment: step; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: start; margin: 12px 0; }
 .steps li::before { content: counter(step); display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #2563eb; color: #fff; font-weight: 800; }
+.steps li > div { min-width: 0; overflow-wrap: anywhere; }
+.steps a, .steps code { overflow-wrap: anywhere; word-break: break-word; }
 a { color: #1d4ed8; }
 @media (max-width: 700px) { main { padding: 30px 16px 54px; } h1 { font-size: 1.9rem; } .grid { grid-template-columns: 1fr; } .hero-visual { margin: 18px 0 24px; } .flow-steps { grid-template-columns: 1fr; } .flow-steps li:not(:last-child)::after { content: "↓"; right: auto; left: 50%; top: auto; bottom: -21px; } }
