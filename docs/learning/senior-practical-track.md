@@ -85,6 +85,15 @@ Chạy security threat model, Docker/metrics, Kind rollout và incident runbook.
 
 Booking cần state machine, hold expiry và release idempotent. Finance cần immutable double-entry ledger, reconciliation và authorization. Dùng [booking](../visual-guides/booking_reservation_state_machine_playbook.md) hoặc [ledger](../visual-guides/finance_double_entry_ledger_playbook.md); không copy `Order` nguyên xi.
 
+## Bài 10 — Các khoảng bắt buộc để gọi là Senior production-ready
+
+- [Java/JVM/thread/memory](../visual-guides/java_jvm_thread_memory_playbook.md): thread dump, heap, JFR, queue và connection pool.
+- [Spring internals/security](../visual-guides/spring_internals_security_playbook.md): proxy, self-invocation, profiles, authorization và IDOR.
+- [Redis Java](../visual-guides/redis_java_implementation_playbook.md): Lua rate limit, cache stampede và lock ownership.
+- [Microservice resilience](../visual-guides/microservice_resilience_contract_playbook.md): timeout, retry budget, circuit breaker, bulkhead, contract và trace.
+- [Performance/capacity](../visual-guides/performance_capacity_memory_playbook.md): p95/p99, GC, pool pressure và capacity note.
+- [Scenario workbook](senior-situation-workbook.md): sáu tình huống phải đạt ≥ 8/10.
+
 ## Thứ tự làm và cách mentor review
 
 Làm Bài 00 → 01 → 02 → 03 trước. Mỗi lần gửi: proposal 10 dòng, diff, test output, một failure đã tạo và câu trả lời interview. Mentor review correctness trước, performance sau, style cuối. Khi phần nền đã có evidence mới sang Redis và microservices.
