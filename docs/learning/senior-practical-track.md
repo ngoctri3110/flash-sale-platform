@@ -81,6 +81,10 @@ Nỗi đau: tách service nhưng timeout, config drift, retry storm và debug kh
 
 Học [failure handling playbook](../visual-guides/failure_handling_sync_async_playbook.md) và chạy [Lab 10](../../playbooks/10-failure-handling-lab/README.md). Phải phân biệt lỗi buộc dừng, lỗi retry, lỗi best-effort log/continue, fallback, compensation và poison message/DLQ. Không được `catch Exception rồi trả success` cho Order/payment/inventory.
 
+## Bài 07B — Transaction taxonomy
+
+Đọc [Transaction taxonomy](../visual-guides/transaction_taxonomy_and_scenarios_playbook.md) và chạy [Lab 11](../../playbooks/11-transaction-scenarios-lab/README.md). Phải phân biệt database transaction, Spring transaction, business transaction, HTTP request, Java thread, Kafka delivery và distributed workflow. Với mỗi failure, ghi rõ đã commit ở đâu, rollback được gì và repair bằng gì.
+
 ## Bài 08 — Security, delivery và operations
 
 Chạy security threat model, Docker/metrics, Kind rollout và incident runbook. Đọc [security](../visual-guides/backend_security_pii_playbook.md), [operations](../visual-guides/docker_observability_runbook_playbook.md) và [Kubernetes](../visual-guides/kubernetes_delivery_scaling_playbook.md).
