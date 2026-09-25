@@ -77,6 +77,10 @@ Nỗi đau: request chậm vì gọi notification/payment; hoặc Kafka down là
 
 Nỗi đau: tách service nhưng timeout, config drift, retry storm và debug không biết request đang ở đâu. Làm [Spring Cloud playbook](../visual-guides/spring_cloud_microservices_playbook.md) sau khi modular monolith đã có boundary.
 
+## Bài 07A — Failure handling đồng bộ và bất đồng bộ
+
+Học [failure handling playbook](../visual-guides/failure_handling_sync_async_playbook.md) và chạy [Lab 10](../../playbooks/10-failure-handling-lab/README.md). Phải phân biệt lỗi buộc dừng, lỗi retry, lỗi best-effort log/continue, fallback, compensation và poison message/DLQ. Không được `catch Exception rồi trả success` cho Order/payment/inventory.
+
 ## Bài 08 — Security, delivery và operations
 
 Chạy security threat model, Docker/metrics, Kind rollout và incident runbook. Đọc [security](../visual-guides/backend_security_pii_playbook.md), [operations](../visual-guides/docker_observability_runbook_playbook.md) và [Kubernetes](../visual-guides/kubernetes_delivery_scaling_playbook.md).
