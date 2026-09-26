@@ -30,6 +30,7 @@ Learning hub:
 - [`Frontend track`](docs/learning/frontend-track.md) — học Shop/Admin UI qua API contract, idempotency, error state và Concurrency Lab.
 - [`Tech Lead system design`](docs/visual-guides/tech_lead_system_design_process_guide.md) — question tree, scope, invariants, diagrams, ADR, delivery, incident và phỏng vấn.
 - [`Redis trong Spring Boot`](docs/visual-guides/redis_spring_boot_beginner_guide.md) — cache, rate limit, lock, session, Lua, annotations, custom patterns và failure flows.
+- [`Monitoring và ELK`](docs/visual-guides/monitoring-logging-elk_guide.md) — structured logs, metrics, traces, data streams, KQL, Elasticsearch query và incident runbook.
 
 Các chặng lớn:
 

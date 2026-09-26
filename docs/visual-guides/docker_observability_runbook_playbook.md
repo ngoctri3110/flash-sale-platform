@@ -1,5 +1,7 @@
 # Playbook 14: Docker, tracing, metrics và runbook
 
+Đọc [Monitoring và ELK cho Spring Boot](monitoring-logging-elk_guide.md) trước để hiểu structured log, data stream và query; file này là runbook ngắn cho failure flow của repository.
+
 ## Mục tiêu vận hành
 
 Khi có report “order thành công nhưng audit thiếu”, không SSH đoán mò. Trace request, kiểm tra DB/outbox, publisher, consumer và metric theo thứ tự.
