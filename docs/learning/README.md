@@ -24,6 +24,7 @@ Một chặng chỉ được xem là hoàn thành khi bạn có đủ: một fai
 | Muốn hiểu transaction/concurrency | Chặng 2 | Chặng 3 → 4 |
 | Muốn học Spring Security | Chặng 5 | Chặng 6 |
 | Muốn hiểu microservices | Chặng 2 → 4 | Chặng 6 |
+| Muốn học cách Tech Lead phân tích và thiết kế hệ thống | [Tech Lead system design guide](../visual-guides/tech_lead_system_design_process_guide.md) | Scenario workbook + capstone |
 | Muốn học React/frontend qua product thật | [Frontend track](frontend-track.md) | Chặng 2 → 3 |
 | Muốn luyện phỏng vấn senior | Tất cả chặng | Chặng 7 + workbook |
 | Muốn dùng Claude Code hiệu quả | Chặng 0 | Chặng 7 |
@@ -192,6 +193,25 @@ Frontend không phải chặng backend bắt buộc; nó là consumer thật c�
 - đề xuất tách Catalog nhưng giữ Order+Inventory cùng boundary.
 
 **Hoàn thành khi:** bạn giải thích được vì sao microservices không chỉ là tách package thành nhiều project.
+
+## Nhánh Tech Lead — system design và delivery
+
+Đây là nhánh dành cho người đã qua correctness cơ bản và muốn học cách dẫn dắt một feature từ ambiguity đến production. Đọc [Tech Lead system design process](../visual-guides/tech_lead_system_design_process_guide.md).
+
+```text
+Problem brief
+→ question tree
+→ scope/non-goals
+→ invariants/workload
+→ context/container/sequence/state/ERD
+→ alternatives + ADR
+→ tickets + acceptance
+→ test/security/observability
+→ rollout/rollback
+→ incident/metrics/learning loop
+```
+
+**Bài phải làm:** viết một problem brief cho no-oversell, vẽ 4 diagram, tạo ADR modular monolith vs service split, chia 5–10 tickets và trả lời capstone trong 3 phút.
 
 ## Chặng 7 — AI-native engineering và phỏng vấn
 
