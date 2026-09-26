@@ -132,6 +132,7 @@ Frontend không phải chặng backend bắt buộc; nó là consumer thật c�
 **Đọc:**
 
 - [PostgreSQL index/pagination/EXPLAIN](../visual-guides/postgresql_index_pagination_explain_playbook.md)
+- [Redis trong Spring Boot cho người mới](../visual-guides/redis_spring_boot_beginner_guide.md)
 - [Redis đúng mục đích](../visual-guides/redis_cache_rate_limit_lock_playbook.md)
 - [Failure handling](../visual-guides/failure_handling_sync_async_playbook.md)
 - [Transactional outbox/Kafka](../visual-guides/transactional_outbox_kafka_playbook.md)

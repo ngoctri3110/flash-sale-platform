@@ -1,5 +1,7 @@
 # Playbook: Redis cache, rate limit và distributed lock
 
+Nếu mới học Redis, đọc [Redis trong Spring Boot cho người mới](redis_spring_boot_beginner_guide.md) trước; file này là playbook ngắn để chạy lab và review pattern.
+
 ## Dùng Redis cho ba bài toán khác nhau
 
 | Bài toán | Pattern | Nỗi đau nếu làm sai |

@@ -1,5 +1,7 @@
 # Playbook: Redis trong Java/Spring ở hệ thống lớn
 
+Đọc [Redis trong Spring Boot cho người mới](redis_spring_boot_beginner_guide.md) trước để hiểu cache/rate-limit/lock bằng flow; file này đi thẳng vào Java implementation và evidence.
+
 ## Chọn pattern theo failure
 
 | Mục tiêu | Pattern | Evidence |
