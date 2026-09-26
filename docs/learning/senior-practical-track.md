@@ -2,6 +2,8 @@
 
 Mục tiêu của track này là làm được một feature thật, nhìn thấy lỗi, sửa bằng test và giải thích được quyết định. Mỗi bài chỉ học phần thường gặp trong dự án; phần Spring không có lý do sử dụng sẽ để sau.
 
+Nếu cần chọn bài theo trình độ hoặc mục tiêu, bắt đầu từ [Learning Hub](README.md). File này là track thực chiến chi tiết; Learning Hub là bảng điều hướng theo chặng.
+
 ## Cách học bắt buộc
 
 ```text
@@ -88,6 +90,10 @@ Học [failure handling playbook](../visual-guides/failure_handling_sync_async_p
 ## Bài 08 — Security, delivery và operations
 
 Chạy security threat model, Docker/metrics, Kind rollout và incident runbook. Đọc [security](../visual-guides/backend_security_pii_playbook.md), [operations](../visual-guides/docker_observability_runbook_playbook.md) và [Kubernetes](../visual-guides/kubernetes_delivery_scaling_playbook.md).
+
+Để học Spring Security theo ví dụ request → filter → authorization → ownership, bắt đầu với [bài trực quan Spring Security cho người mới](../visual-guides/spring_security_beginner_guide.md), sau đó tra cứu [Spring Security và hệ sinh thái Spring](spring-security-and-ecosystem.md). MVP hiện chưa có authentication thật; phải viết ADR về identity source và authorization matrix trước khi thêm `spring-boot-starter-security`.
+
+Để nối Clean Architecture với microservices và luyện trả lời phỏng vấn, đọc [Clean Architecture và Microservices](../visual-guides/microservices-clean-architecture-interview_guide.md). Repository hiện là modular monolith; guide giải thích vì sao giữ Order/Inventory cùng transaction trước khi cân nhắc tách service.
 
 ## Bài 09 — Capstone booking hoặc finance
 

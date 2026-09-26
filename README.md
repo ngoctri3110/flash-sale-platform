@@ -3,6 +3,10 @@
 A Java Spring Boot + React project to demonstrate senior backend engineering skills:
 API design, validation, transactions, race condition handling, PostgreSQL, Kafka, Docker, Kubernetes, performance, clean code, and AI-assisted engineering workflow.
 
+**Bắt đầu học:** [`Learning Hub`](docs/learning/README.md) — lộ trình theo chặng, bài thực hành và hướng luyện phỏng vấn.
+
+**Mở giao diện học trực tuyến:** [Flash Sale Learning Portal](https://ngoctri3110.github.io/flash-sale-platform/)
+
 ## Goal
 
 Build a realistic flash sale system where many users can buy limited-stock products concurrently without overselling.
@@ -19,6 +23,24 @@ This project uses mattpocock/skills:
 - /implement for coding
 - /code-review for review
 - /handoff for long-session continuity
+
+Learning hub:
+
+- [`Learning Hub`](docs/learning/README.md) — chọn chặng học, bài thực hành, tiêu chí hoàn thành và lối đi phỏng vấn.
+- [`Frontend track`](docs/learning/frontend-track.md) — học Shop/Admin UI qua API contract, idempotency, error state và Concurrency Lab.
+
+Các chặng lớn:
+
+```text
+0 Orientation
+→ 1 Spring request/data
+→ 2 Clean Architecture + API
+→ 3 Transaction/concurrency/correctness
+→ 4 Data/performance/failure
+→ 5 Security/operations
+→ 6 Microservices/distributed systems
+→ 7 AI-native delivery + interview
+```
 
 ## Current foundation
 
