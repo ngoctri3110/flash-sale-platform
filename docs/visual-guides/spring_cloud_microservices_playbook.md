@@ -1,5 +1,17 @@
 # Playbook: Spring Cloud microservices vừa đủ
 
+```mermaid
+flowchart LR
+  Client --> Gateway
+  Gateway --> Order[Order service]
+  Order -->|timeout + contract| Catalog[Catalog service]
+  Order --> DB1[(Order DB)]
+  Catalog --> DB2[(Catalog DB)]
+  Order --> Events[Event broker]
+```
+
+Mỗi mũi tên network là một failure boundary. Service boundary phải đi cùng ownership, contract, timeout và observability.
+
 ## Tách khi nào?
 
 Chỉ tách khi có boundary ownership, deploy cadence, scale hoặc failure isolation rõ ràng. Mỗi service có process, thread pool, connection pool, config, deploy và data boundary riêng; microservices tăng failure mode.

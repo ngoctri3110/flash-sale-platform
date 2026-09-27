@@ -1,5 +1,15 @@
 # Playbook 13: Testing strategy cho backend
 
+```mermaid
+flowchart TB
+  U[Unit: policy/branch] --> I[Integration: DB/transaction/constraint]
+  I --> H[HTTP: serialization/status/error contract]
+  H --> C[Concurrency/failure: race/retry/timeout]
+  C --> S[Smoke: Compose/Kind wiring]
+```
+
+Chọn tầng theo failure mode: business policy cần unit test; PostgreSQL lock/constraint cần database thật; rollout cần smoke test.
+
 ## Test pyramid có mục đích
 
 | Loại | Bắt lỗi gì | Ví dụ trong repo |

@@ -1,5 +1,17 @@
 # Playbook: Redis trong Java/Spring ở hệ thống lớn
 
+```mermaid
+sequenceDiagram
+  participant App as Spring service
+  participant R as Redis
+  participant DB as PostgreSQL
+  App->>R: GET cache/key or atomic script
+  alt miss/coordination
+    App->>DB: read or commit truth
+    DB-->>App: result
+    App->>R: set/invalidate/lease
+  end
+
 Đọc [Redis trong Spring Boot cho người mới](redis_spring_boot_beginner_guide.md) trước để hiểu cache/rate-limit/lock bằng flow; file này đi thẳng vào Java implementation và evidence.
 
 ## Chọn pattern theo failure

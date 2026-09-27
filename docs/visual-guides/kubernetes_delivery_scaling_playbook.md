@@ -1,5 +1,18 @@
 # Playbook 15: Kubernetes delivery, probes và scaling
 
+```mermaid
+flowchart LR
+  Pod[Container starts] --> Startup{startup probe}
+  Startup -->|Fail| Wait[No traffic; keep starting]
+  Startup -->|Pass| Ready{readiness probe}
+  Ready -->|Fail| NoTraffic[Remove from Service endpoints]
+  Ready -->|Pass| Traffic[Receive traffic]
+  Traffic --> Live{liveness probe}
+  Live -->|Fail repeatedly| Restart[Restart container]
+```
+
+Readiness bảo vệ traffic; liveness quyết định restart; startup cho JVM/dependency thời gian khởi động.
+
 ## Học từ repo
 
 Đọc [backend manifest](../../k8s/backend.yaml), [concurrency smoke job](../../k8s/concurrency-smoke.yaml), [kustomization](../../k8s/kustomization.yaml) và [Kind guide](../../k8s/README.md).

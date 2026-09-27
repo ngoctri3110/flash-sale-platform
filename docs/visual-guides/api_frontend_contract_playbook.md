@@ -2,6 +2,20 @@
 
 ## Flow chuẩn
 
+```mermaid
+sequenceDiagram
+  participant UI as React UI
+  participant API as Spring API
+  participant DB as PostgreSQL
+  UI->>API: request + headers/body
+  API->>API: validate shape + business boundary
+  API->>DB: query/transaction
+  DB-->>API: committed result or failure
+  API-->>UI: stable DTO or Problem Details
+```
+
+Frontend không đoán database entity. Contract phải nói rõ field, status, error code, pagination và retry behavior.
+
 ```text
 OpenAPI/schema → backend DTO + validation → integration contract test
 → frontend generated type/schema → mapping loading/success/error

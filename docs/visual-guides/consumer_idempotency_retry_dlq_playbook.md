@@ -1,5 +1,15 @@
 # Playbook 11: Consumer idempotency, retry và DLQ
 
+```mermaid
+flowchart LR
+  E[Event received] --> D{processed event exists?}
+  D -->|Yes| N[Acknowledge / no-op]
+  D -->|No| W[Side effect + processed_events in transaction]
+  W -->|Commit| A[Acknowledge]
+  W -->|Transient failure| R[Bounded retry/backoff]
+  W -->|Poison/permanent| Q[DLQ + alert + replay runbook]
+```
+
 ## Rule
 
 > Consumer nhận cùng event hai lần vẫn chỉ tạo side effect một lần.

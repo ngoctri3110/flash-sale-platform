@@ -16,6 +16,19 @@
 
 Một chặng chỉ được xem là hoàn thành khi bạn có đủ: một failure đã tái hiện, một test bảo vệ, một kết quả chạy và một trade-off có thể giải thích.
 
+## Cách đọc một bài có sơ đồ
+
+Đừng chỉ nhìn mũi tên. Với mỗi diagram, hãy trả lời bốn câu:
+
+```text
+Ai tạo request/event?
+Ai là source of truth?
+Điểm commit/ack nằm ở đâu?
+Nếu bước kế tiếp fail thì state và retry ra sao?
+```
+
+Các guide trực quan dùng Mermaid để bạn xem ngay trên GitHub Pages và chỉnh sửa được trong Markdown. Khi sơ đồ có nhánh `timeout`, `duplicate`, `rollback` hoặc `DLQ`, hãy đọc nhánh lỗi trước khi đọc happy path.
+
 ## Chọn đường đi
 
 | Bạn muốn đạt điều gì? | Bắt đầu từ | Đi tiếp đến |

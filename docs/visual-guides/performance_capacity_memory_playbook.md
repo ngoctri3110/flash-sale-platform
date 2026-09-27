@@ -1,5 +1,17 @@
 # Playbook: performance, capacity và memory budget
 
+```mermaid
+flowchart LR
+  Load[Traffic] --> Threads[HTTP threads/queue]
+  Threads --> Pool[DB connection pool]
+  Pool --> Lock[DB lock/query]
+  Lock --> DB[(PostgreSQL)]
+  Threads --> Heap[Heap: body/DTO/cache]
+  Pool --> Metrics[p95 + pending + lock wait]
+```
+
+CPU thấp không chứng minh hệ thống còn capacity; request có thể đang chờ queue, connection hoặc database lock.
+
 ## Từ latency đến capacity
 
 Đừng nói “scale thêm pod” trước khi tách: CPU time, DB time, downstream time, queue wait, serialization và lock wait.

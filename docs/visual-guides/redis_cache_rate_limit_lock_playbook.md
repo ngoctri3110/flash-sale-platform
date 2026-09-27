@@ -1,5 +1,13 @@
 # Playbook: Redis cache, rate limit và distributed lock
 
+```mermaid
+flowchart LR
+  App[Spring Boot] --> Cache[Cache-aside]
+  App --> Limit[Lua rate limit]
+  App --> Lock[Token + TTL lock]
+  App --> DB[(PostgreSQL source of truth)]
+```
+
 Nếu mới học Redis, đọc [Redis trong Spring Boot cho người mới](redis_spring_boot_beginner_guide.md) trước; file này là playbook ngắn để chạy lab và review pattern.
 
 ## Dùng Redis cho ba bài toán khác nhau

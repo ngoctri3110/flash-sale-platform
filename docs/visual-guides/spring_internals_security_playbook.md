@@ -1,5 +1,14 @@
 # Playbook: Spring proxy, transaction và security boundary
 
+```mermaid
+flowchart LR
+  Request[HTTP request] --> Filter[Security filters]
+  Filter --> Proxy[Spring proxy]
+  Proxy --> Tx[Transactional use case]
+  Tx --> DB[(Database)]
+  Filter --> Auth[Authentication/authorization]
+```
+
 ## Nỗi đau
 
 `@Transactional` có mặt nhưng rollback không xảy ra; profile local vô tình dùng secret production; customer đọc được Order của customer khác.

@@ -1,5 +1,18 @@
 # Playbook 16: Backend security, authorization và PII
 
+```mermaid
+flowchart LR
+  R[Request] --> A{Authentication?}
+  A -->|No| U401[401]
+  A -->|Yes| P{Permission/role?}
+  P -->|No| U403[403]
+  P -->|Yes| O{Own resource?}
+  O -->|No| U404[404/403 theo contract]
+  O -->|Yes| B[Business logic + audit]
+```
+
+Authentication trả lời “ai gọi”; authorization trả lời “được làm gì”; ownership trả lời “resource này có thuộc caller không”.
+
 ## Phạm vi trung thực
 
 MVP Flash Sale chưa có authentication thật. Đây là playbook design/capstone, không khẳng định repo hiện đã banking-grade.
