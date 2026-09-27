@@ -133,6 +133,15 @@ Lint the API contract from the project root:
 npx --yes @redocly/cli lint openapi/openapi.yaml
 ```
 
+Optional observability lab (Elasticsearch, Kibana and Logstash):
+
+```powershell
+docker compose -f compose.yml -f compose.observability.yml --profile observability up -d
+.\scripts\observability\send-sample-log.ps1
+```
+
+Open Kibana at `http://localhost:5601`. The default Compose stack stays lightweight; see the [Monitoring và ELK guide](docs/visual-guides/monitoring-logging-elk_guide.md) for mappings and queries.
+
 ## API contract
 
 The design-first contract is in [`openapi/openapi.yaml`](openapi/openapi.yaml).

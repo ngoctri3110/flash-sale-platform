@@ -27,6 +27,15 @@ Repository đã có nền tảng observability:
 
 Repository **chưa có ELK/Elastic/OpenSearch stack hoàn chỉnh và chưa chuẩn hóa JSON log schema**. Vì vậy bài này là guide thiết kế và rollout, không khẳng định ELK đã chạy trong Compose.
 
+Repository hiện đã có một stack lab tùy chọn ở [`compose.observability.yml`](../../compose.observability.yml). Stack này không chạy cùng Compose mặc định vì Elasticsearch/Kibana cần nhiều memory hơn backend demo.
+
+```powershell
+docker compose -f compose.yml -f compose.observability.yml --profile observability up -d
+.\scripts\observability\send-sample-log.ps1
+```
+
+Sau đó mở `http://localhost:5601`, tạo Data View `logs-flashsale-*` và tìm theo `event.action: "order.accepted"`. Đây là ingestion lab tối thiểu; production cần collector đọc stdout, auth/TLS, retention và access policy.
+
 ## 2. Bức tranh monitoring đúng
 
 ```mermaid
@@ -127,6 +136,8 @@ Dùng `trace.id` và resource ID đã được policy cho phép thay vì dump to
 ### Hiện tại
 
 `RequestTraceFilter` đã đặt `traceId` vào MDC. Bước tiếp theo là để logging backend đọc MDC và output JSON.
+
+Backend hiện đã bật structured ECS console logging trong [`application.yml`](../../backend/src/main/resources/application.yml). Spring Boot hỗ trợ ECS/Logstash/GELF trực tiếp qua `logging.structured.format.console`, nên project không cần thêm encoder chỉ để tạo JSON log. [Spring Boot structured logging](https://docs.spring.io/spring-boot/reference/features/logging.html)
 
 ### Ví dụ Logback JSON
 

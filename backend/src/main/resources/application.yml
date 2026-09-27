@@ -9,6 +9,15 @@ spring:
       ddl-auto: validate
     open-in-view: false
 
+logging:
+  structured:
+    format:
+      console: ecs
+    ecs:
+      service:
+        name: ${spring.application.name}
+        environment: ${SPRING_PROFILES_ACTIVE:default}
+
 management:
   endpoints:
     web:
