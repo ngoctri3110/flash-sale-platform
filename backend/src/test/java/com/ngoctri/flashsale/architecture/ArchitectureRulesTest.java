@@ -11,7 +11,7 @@ class ArchitectureRulesTest {
 
     private static final JavaClasses APPLICATION_CLASSES =
             new ClassFileImporter()
-                    .withImportOption(ImportOption.DoNotIncludeTests.INSTANCE)
+                    .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
                     .importPackages("com.ngoctri.flashsale");
 
     @Test
