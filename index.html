@@ -3,54 +3,132 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Flash Sale Platform · Learning Portal</title>
+  <meta name="description" content="Learning portal cho Flash Sale Platform: Java, Spring Boot, correctness, security, microservices, observability và AI-assisted engineering.">
+  <title>Flash Sale · Learning Portal</title>
   <link rel="stylesheet" href="assets/lesson.css">
 </head>
-<body>
-<main>
-  <header>
-    <p class="eyebrow">Senior Java Backend → Tech Lead</p>
-    <h1>Flash Sale Platform Learning Portal</h1>
-    <p>Học bằng cách đọc code, chạy lab, tạo failure, sửa bằng test và giải thích trade-off như khi làm việc thật.</p>
+<body class="portal-body">
+  <header class="portal-header">
+    <div class="portal-header-inner">
+      <a class="portal-mark" href="index.html" aria-label="Flash Sale Learning Portal">
+        <span class="mark-block">FS</span>
+        <span>Flash Sale<br><b>Learning Portal</b></span>
+      </a>
+      <nav class="portal-nav" aria-label="Portal navigation">
+        <a href="#tracks">Lộ trình</a>
+        <a href="#practice">Thực hành</a>
+        <a href="https://github.com/ngoctri3110/flash-sale-platform">Repository</a>
+      </nav>
+    </div>
   </header>
 
-  <img class="hero-visual" src="assets/learning-loop.svg" alt="Vòng lặp học: đọc, chạy, phá, sửa và giải thích">
+  <main class="portal-main">
+    <section class="portal-hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Java Spring Boot · Backend · Tech Lead</p>
+        <h1>Học để <em>chứng minh</em>, không chỉ để nhớ.</h1>
+        <p class="hero-lede">Một learning portal đi từ request đầu tiên đến system design, incident và AI-assisted delivery. Mỗi chặng có code, failure, test, metric và câu trả lời phỏng vấn.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#tracks">Chọn chặng học <span>↓</span></a>
+          <a class="button button-quiet" href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/docs/learning/README.md">Mở Learning Hub ↗</a>
+        </div>
+      </div>
+      <div class="hero-aside">
+        <div class="hero-index"><span>01</span><b>Đọc</b><small>mental model + code</small></div>
+        <div class="hero-index"><span>02</span><b>Phá</b><small>failure + concurrency</small></div>
+        <div class="hero-index"><span>03</span><b>Chứng minh</b><small>test + metric + interview</small></div>
+      </div>
+    </section>
 
-  <div class="grid">
-    <section class="card"><span class="tag">Bước 1</span><h2>Đọc đúng</h2><p>Lần theo một request, invariant và file code liên quan trước khi mở rộng phạm vi.</p></section>
-    <section class="card"><span class="tag">Bước 2</span><h2>Chạy thật</h2><p>Dùng test, Docker, PostgreSQL hoặc Kind để quan sát behavior thay vì đoán.</p></section>
-    <section class="card"><span class="tag">Bước 3</span><h2>Giải thích</h2><p>Ghi evidence và trade-off như khi review production hoặc trả lời phỏng vấn.</p></section>
-  </div>
+    <section class="progress-strip" aria-label="Learning progress">
+      <div><span class="progress-kicker">PROGRESS</span><strong id="progress-count">0 / 10 tracks</strong></div>
+      <div class="progress-track" aria-hidden="true"><span id="progress-bar"></span></div>
+      <button class="text-button" id="reset-progress" type="button">Reset</button>
+    </section>
 
-  <img class="hero-visual" src="assets/senior-to-techlead.svg" alt="Lộ trình từ correctness qua performance và reliability tới Tech Lead">
+    <section class="route-section" id="route">
+      <div class="section-intro">
+        <p class="eyebrow">Recommended route</p>
+        <h2>Đi theo một đường, không mở 40 tab.</h2>
+        <p>Chọn mục tiêu gần nhất. Portal sẽ đưa bạn vào đúng chặng và chỉ ra prerequisite cần có.</p>
+      </div>
+      <div class="route-grid">
+        <a class="route-card route-card-main" href="#track-0">
+          <span class="route-number">A</span><span><b>Mới bắt đầu backend</b><small>Orientation → Spring → API → correctness</small></span><span class="route-arrow">↗</span>
+        </a>
+        <a class="route-card" href="#track-3">
+          <span class="route-number">B</span><span><b>Chuẩn bị phỏng vấn senior</b><small>Correctness → systems → scenarios</small></span><span class="route-arrow">↗</span>
+        </a>
+        <a class="route-card" href="#track-7">
+          <span class="route-number">C</span><span><b>Đi theo hướng Tech Lead</b><small>Design → delivery → incident → mentoring</small></span><span class="route-arrow">↗</span>
+        </a>
+      </div>
+    </section>
 
-  <section class="card">
-    <h2>Bắt đầu học</h2>
-    <p><a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/docs/learning/README.md">Learning Hub theo chặng</a> giúp chọn đường học backend, security, microservices, frontend và AI-assisted engineering.</p>
-    <p><a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/docs/visual-guides/tech_lead_system_design_process_guide.md">Tech Lead system design</a> hướng dẫn từ câu hỏi discovery đến diagram, ADR, delivery, incident và phỏng vấn.</p>
-    <p><a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/docs/visual-guides/redis_spring_boot_beginner_guide.md">Redis trong Spring Boot</a> giải thích cache, rate limit, lock, Lua, annotation và custom pattern bằng flow.</p>
-    <p><a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/docs/visual-guides/monitoring-logging-elk_guide.md">Monitoring và ELK</a> giải thích structured log, metrics, trace, Kibana query, data stream và runbook incident.</p>
-    <p><a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/docs/learning/README.md">Cách đọc diagram</a>: với mỗi flow hãy tìm actor, source of truth, commit/ack và nhánh lỗi.</p>
-    <p><a href="lessons/0000-core-foundations-textbook.html">Mở giáo trình lõi</a> nếu bạn mới bắt đầu; mỗi chương có nỗi đau, code, lab, failure và câu trả lời phỏng vấn.</p>
-    <p><a href="lessons/0013-production-and-techlead-textbook.html">Mở giáo trình vận hành và Tech Lead</a> sau khi hoàn thành bảy bài lõi.</p>
-    <p><a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/docs/learning/senior-situation-workbook.md">Làm Scenario Workbook</a> để kiểm tra bạn có xử lý được tình huống senior hay mới chỉ nhớ khái niệm.</p>
-    <p><a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/docs/visual-guides/failure_handling_sync_async_playbook.md">Học failure handling</a> để phân biệt stop, retry, continue, fallback, compensation và DLQ.</p>
-    <p><a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/docs/visual-guides/transaction_taxonomy_and_scenarios_playbook.md">Học transaction taxonomy</a> để không nhầm database transaction với business transaction hay async workflow.</p>
-    <p><a href="reference/learning-map.html">Mở learning map</a> để đi theo thứ tự 12 bài nền tảng.</p>
-    <p><a href="reference/mentor-practice-track.html">Mở mentor practice track</a> để biết file cần đọc, bài phải tự code và evidence cần gửi.</p>
-  </section>
+    <section class="tracks-section" id="tracks">
+      <div class="section-heading-row">
+        <div><p class="eyebrow">The curriculum</p><h2>Chặng học</h2></div>
+        <div class="track-tools"><label class="search-box"><span>⌕</span><input id="track-search" type="search" placeholder="Tìm chặng, topic..." aria-label="Tìm chặng học"></label><select id="track-filter" aria-label="Lọc theo level"><option value="all">Tất cả level</option><option value="foundation">Foundation</option><option value="senior">Senior</option><option value="lead">Tech Lead</option></select></div>
+      </div>
+      <div class="track-grid" id="track-grid">
+        <article class="track-card" id="track-0" data-title="orientation domain product inventory order" data-level="foundation" data-tags="domain,foundation">
+          <div class="track-top"><span class="track-id">00</span><span class="status-dot" aria-hidden="true"></span></div><p class="track-label">FOUNDATION</p><h3>Hiểu sản phẩm trước framework</h3><p>Domain glossary, API contract và invariant của Flash Sale. Biết chính xác Order là gì trước khi học transaction.</p><div class="track-meta"><span>45 phút</span><span>3 bài</span></div><a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/docs/learning/README.md#chặng-0--hiểu-sản-phẩm-trước-khi-hiểu-framework">Mở chặng ↗</a><label class="track-check"><input type="checkbox" data-track="0"> Đã hoàn thành</label>
+        </article>
+        <article class="track-card" id="track-1" data-title="spring boot request data persistence jpa jdbc" data-level="foundation" data-tags="spring,foundation,data">
+          <div class="track-top"><span class="track-id">01</span><span class="status-dot" aria-hidden="true"></span></div><p class="track-label">FOUNDATION</p><h3>Spring request → data</h3><p>Trace controller, bean, thread, connection, JPA/JDBC và query. Chạy được chưa đủ; phải biết request đang chờ ở đâu.</p><div class="track-meta"><span>3–5 giờ</span><span>4 labs</span></div><a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/docs/learning/README.md#chặng-1--spring-boot-request-bean-và-persistence">Mở chặng ↗</a><label class="track-check"><input type="checkbox" data-track="1"> Đã hoàn thành</label>
+        </article>
+        <article class="track-card" id="track-2" data-title="clean architecture api contract boundary solid" data-level="foundation" data-tags="architecture,api,foundation">
+          <div class="track-top"><span class="track-id">02</span><span class="status-dot" aria-hidden="true"></span></div><p class="track-label">FOUNDATION</p><h3>Boundary và Clean Architecture</h3><p>Controller, use case, port, adapter. Học bằng `PlaceOrder` thật và ArchitectureTest, không học bằng sơ đồ trống.</p><div class="track-meta"><span>2–3 giờ</span><span>3 labs</span></div><a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/docs/visual-guides/clean_architecture_solid_patterns_playbook.md">Mở guide ↗</a><label class="track-check"><input type="checkbox" data-track="2"> Đã hoàn thành</label>
+        </article>
+        <article class="track-card featured-track" id="track-3" data-title="transaction idempotency concurrency oversell correctness" data-level="senior" data-tags="correctness,database,senior">
+          <div class="track-top"><span class="track-id">03</span><span class="status-dot" aria-hidden="true"></span></div><p class="track-label">CORE SENIOR</p><h3>Correctness dưới failure</h3><p>Atomic decrement, idempotency, retry, lock và concurrency. Đây là chặng chứng minh system đúng bằng PostgreSQL thật.</p><div class="track-meta"><span>5–8 giờ</span><span>5 labs</span></div><a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/docs/visual-guides/atomic_order_inventory_playbook.md">Mở guide ↗</a><label class="track-check"><input type="checkbox" data-track="3"> Đã hoàn thành</label>
+        </article>
+        <article class="track-card" id="track-4" data-title="performance sql n+1 redis failure kafka outbox" data-level="senior" data-tags="performance,reliability,senior">
+          <div class="track-top"><span class="track-id">04</span><span class="status-dot" aria-hidden="true"></span></div><p class="track-label">SENIOR</p><h3>Data, performance và delivery</h3><p>EXPLAIN, pagination, Redis, outbox, Kafka, retry và DLQ. Mọi “nhanh hơn” phải có query plan hoặc metric.</p><div class="track-meta"><span>6–10 giờ</span><span>7 labs</span></div><a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/docs/learning/README.md#chặng-4--data-performance-và-failure-handling">Mở chặng ↗</a><label class="track-check"><input type="checkbox" data-track="4"> Đã hoàn thành</label>
+        </article>
+        <article class="track-card" id="track-5" data-title="security spring security authorization pii operations kubernetes" data-level="senior" data-tags="security,operations,senior">
+          <div class="track-top"><span class="track-id">05</span><span class="status-dot" aria-hidden="true"></span></div><p class="track-label">SENIOR</p><h3>Security và operations</h3><p>Authentication, authorization, IDOR, PII, Actuator, probes và rollout. Học từ request thật đến runbook.</p><div class="track-meta"><span>5–8 giờ</span><span>6 labs</span></div><a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/docs/visual-guides/spring_security_beginner_guide.md">Mở guide ↗</a><label class="track-check"><input type="checkbox" data-track="5"> Đã hoàn thành</label>
+        </article>
+        <article class="track-card" id="track-6" data-title="microservices spring cloud distributed resilience contract" data-level="senior" data-tags="microservices,reliability,senior">
+          <div class="track-top"><span class="track-id">06</span><span class="status-dot" aria-hidden="true"></span></div><p class="track-label">SENIOR</p><h3>Microservices và distributed systems</h3><p>Boundary, data ownership, timeout, retry budget, circuit breaker, contract và eventual consistency.</p><div class="track-meta"><span>5–8 giờ</span><span>3 labs</span></div><a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/docs/visual-guides/microservices-clean-architecture-interview_guide.md">Mở guide ↗</a><label class="track-check"><input type="checkbox" data-track="6"> Đã hoàn thành</label>
+        </article>
+        <article class="track-card lead-track" id="track-7" data-title="tech lead system design discovery adr delivery incident" data-level="lead" data-tags="tech-lead,architecture,lead">
+          <div class="track-top"><span class="track-id">07</span><span class="status-dot" aria-hidden="true"></span></div><p class="track-label">TECH LEAD</p><h3>System design và delivery</h3><p>Đặt câu hỏi, chốt scope, vẽ context/container/sequence/ERD, viết ADR, chia ticket và dẫn incident.</p><div class="track-meta"><span>4–8 giờ</span><span>Capstone</span></div><a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/docs/visual-guides/tech_lead_system_design_process_guide.md">Mở guide ↗</a><label class="track-check"><input type="checkbox" data-track="7"> Đã hoàn thành</label>
+        </article>
+        <article class="track-card" id="track-8" data-title="ai agent claude code codex sdlc interview" data-level="lead" data-tags="ai-agent,interview,lead">
+          <div class="track-top"><span class="track-id">08</span><span class="status-dot" aria-hidden="true"></span></div><p class="track-label">AI-NATIVE</p><h3>Claude Code và AI-assisted SDLC</h3><p>Intent → spec → plan → implement → eval → review → deploy. Dùng agent để tăng tốc mà không giao architecture mù.</p><div class="track-meta"><span>4–6 giờ</span><span>Interview</span></div><a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/docs/visual-guides/claude_code_ai_native_sdlc_beginner_guide.md">Mở guide ↗</a><label class="track-check"><input type="checkbox" data-track="8"> Đã hoàn thành</label>
+        </article>
+        <article class="track-card" id="track-9" data-title="frontend react api idempotency concurrency" data-level="foundation" data-tags="frontend,api,foundation">
+          <div class="track-top"><span class="track-id">09</span><span class="status-dot" aria-hidden="true"></span></div><p class="track-label">PARALLEL TRACK</p><h3>Frontend như một API lab</h3><p>Shop/Admin UI, Problem Details, replay, stale response và Concurrency Lab. Học backend bằng cách nhìn behavior.</p><div class="track-meta"><span>2–4 giờ</span><span>React lab</span></div><a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/docs/learning/frontend-track.md">Mở guide ↗</a><label class="track-check"><input type="checkbox" data-track="9"> Đã hoàn thành</label>
+        </article>
+      </div>
+      <p class="empty-message" id="empty-message" hidden>Không tìm thấy chặng phù hợp. Thử từ khóa khác hoặc bỏ bộ lọc.</p>
+    </section>
 
-  <section class="card">
-    <h2>Playbooks thực hành</h2>
-    <p><a href="reference/playbooks.html">Xem danh sách playbooks và labs</a>. Mỗi playbook tập trung vào một vấn đề production cụ thể.</p>
-    <p><a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/docs/learning/senior-practical-track.md">Mở Senior Practical Track</a> để học theo nỗi đau production, từ IntelliJ đến concurrency, Redis và microservices.</p>
-  </section>
+    <section class="practice-section" id="practice">
+      <div class="practice-copy"><p class="eyebrow">Proof over memory</p><h2>Mỗi chặng phải để lại evidence.</h2><p>Code chạy, failure tái hiện, test bảo vệ, metric trước/sau và câu trả lời phỏng vấn. Nếu chỉ đọc xong, chặng đó chưa hoàn thành.</p></div>
+      <div class="practice-list"><div><span>01</span><b>Chạy</b><small>Docker · PostgreSQL · Kafka · Kind</small></div><div><span>02</span><b>Phá</b><small>retry · timeout · duplicate · race</small></div><div><span>03</span><b>Giải thích</b><small>trade-off · ADR · interview</small></div></div>
+    </section>
 
-  <section class="card">
-    <h2>Project</h2>
-    <p><a href="https://github.com/ngoctri3110/flash-sale-platform">GitHub repository</a> · <a href="https://github.com/ngoctri3110/flash-sale-platform/tree/main/frontend">React demo source</a></p>
-    <p>Website này là tài liệu tĩnh. Backend, PostgreSQL, Kafka, Docker và Kubernetes vẫn chạy local theo README của repository.</p>
-  </section>
-</main>
+    <footer class="portal-footer"><span>Flash Sale Platform · Learning Portal</span><span><a href="https://github.com/ngoctri3110/flash-sale-platform">Source</a> · <a href="https://github.com/ngoctri3110/flash-sale-platform/blob/main/docs/learning/README.md">Learning Hub</a></span></footer>
+  </main>
+<script>
+(() => {
+  const key = 'flash-sale-learning-progress-v2';
+  const checks = [...document.querySelectorAll('[data-track]')];
+  const search = document.querySelector('#track-search');
+  const filter = document.querySelector('#track-filter');
+  const cards = [...document.querySelectorAll('.track-card')];
+  const bar = document.querySelector('#progress-bar');
+  const count = document.querySelector('#progress-count');
+  const empty = document.querySelector('#empty-message');
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(key) || '{}'); } catch (_) { saved = {}; }
+  checks.forEach((input) => { input.checked = Boolean(saved[input.dataset.track]); input.closest('.track-card').classList.toggle('is-done', input.checked); input.addEventListener('change', () => { saved[input.dataset.track] = input.checked; localStorage.setItem(key, JSON.stringify(saved)); input.closest('.track-card').classList.toggle('is-done', input.checked); updateProgress(); }); });
+  function updateProgress() { const done = checks.filter((input) => input.checked).length; count.textContent = `${done} / ${checks.length} tracks`; bar.style.width = `${Math.round((done / checks.length) * 100)}%`; }
+  function filterCards() { const needle = search.value.trim().toLocaleLowerCase(); const level = filter.value; let visible = 0; cards.forEach((card) => { const matchesText = !needle || `${card.dataset.title} ${card.dataset.tags}`.includes(needle); const matchesLevel = level === 'all' || card.dataset.level === level; const show = matchesText && matchesLevel; card.hidden = !show; if (show) visible += 1; }); empty.hidden = visible !== 0; }
+  search.addEventListener('input', filterCards); filter.addEventListener('change', filterCards); document.querySelector('#reset-progress').addEventListener('click', () => { saved = {}; localStorage.removeItem(key); checks.forEach((input) => { input.checked = false; input.closest('.track-card').classList.remove('is-done'); }); updateProgress(); }); updateProgress();
+})();
+</script>
 </body>
 </html>
