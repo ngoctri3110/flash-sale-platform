@@ -39,6 +39,9 @@ Các guide trực quan dùng Mermaid để bạn xem ngay trên GitHub Pages và
 | Muốn hiểu microservices | Chặng 2 → 4 | Chặng 6 |
 | Muốn học cách Tech Lead phân tích và thiết kế hệ thống | [Tech Lead system design guide](../visual-guides/tech_lead_system_design_process_guide.md) | Scenario workbook + capstone |
 | Muốn học React/frontend qua product thật | [Frontend track](frontend-track.md) | Chặng 2 → 3 |
+| Muốn học immutability/value objects | [Java immutability guide](../visual-guides/java-immutability-value-objects_guide.md) | Chặng 1 → 3 |
+| Muốn học TLS/JWT/OIDC thực hành | [Security protocols lab](../visual-guides/spring-security-tls-jwt-oidc_lab_guide.md) | Chặng 5 |
+| Muốn học design patterns và TDD | [Patterns + TDD guide](../visual-guides/java-design-patterns-tdd_guide.md) | Chặng 2 → 3 |
 | Muốn luyện phỏng vấn senior | Tất cả chặng | Chặng 7 + workbook |
 | Muốn dùng Claude Code hiệu quả | Chặng 0 | Chặng 7 |
 
@@ -250,6 +253,14 @@ Problem brief
 6. Trả lời phỏng vấn 60 giây và 3 phút bằng evidence thật.
 
 **Hoàn thành khi:** bạn nói được AI làm phần nào, human giữ quyết định nào, evidence nào chứng minh kết quả và metric nào đo năng suất.
+
+## Module bổ sung — Java, security protocols và patterns
+
+Các module này bổ sung chiều sâu cho chặng chính, không cần học trước toàn bộ roadmap:
+
+- [Java immutability và value objects](../visual-guides/java-immutability-value-objects_guide.md): `final`, record, snapshot, immutable event và thread reasoning.
+- [TLS, JWT và OAuth/OIDC lab](../visual-guides/spring-security-tls-jwt-oidc_lab_guide.md): HTTPS, token validation, scope, IDOR, certificate rotation.
+- [Design patterns và TDD](../visual-guides/java-design-patterns-tdd_guide.md): Factory, Decorator, Singleton, Observer, Strategy và red-green-refactor.
 
 ## Bản đồ chọn nhanh
 

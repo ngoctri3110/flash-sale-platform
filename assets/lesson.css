@@ -102,6 +102,7 @@ a { color: #1d4ed8; }
 .track-card.is-done .status-dot { background:#1e9a63; box-shadow:0 0 0 4px #d9f5e7; }
 .featured-track { border-top:4px solid #2d67dd; }
 .lead-track { border-top:4px solid #e08b27; }
+.optional-track { border-top:4px solid #7c88a6; }
 .track-top { display:flex; justify-content:space-between; align-items:center; }
 .track-id { color:#6f83a3; font:700 .85rem "Cascadia Code", monospace; }
 .status-dot { width:8px; height:8px; background:#d1dbea; border-radius:50%; }

@@ -31,6 +31,9 @@ Learning hub:
 - [`Tech Lead system design`](docs/visual-guides/tech_lead_system_design_process_guide.md) — question tree, scope, invariants, diagrams, ADR, delivery, incident và phỏng vấn.
 - [`Redis trong Spring Boot`](docs/visual-guides/redis_spring_boot_beginner_guide.md) — cache, rate limit, lock, session, Lua, annotations, custom patterns và failure flows.
 - [`Monitoring và ELK`](docs/visual-guides/monitoring-logging-elk_guide.md) — structured logs, metrics, traces, data streams, KQL, Elasticsearch query và incident runbook.
+- [`Java immutability và value objects`](docs/visual-guides/java-immutability-value-objects_guide.md) — `final`, records, snapshots, immutable events và concurrency reasoning.
+- [`TLS, JWT và OAuth/OIDC`](docs/visual-guides/spring-security-tls-jwt-oidc_lab_guide.md) — security protocols, Spring resource server, IDOR và certificate lab.
+- [`Design patterns và TDD`](docs/visual-guides/java-design-patterns-tdd_guide.md) — Factory, Decorator, Singleton, Observer, Strategy và red-green-refactor.
 
 Các chặng lớn:
 
