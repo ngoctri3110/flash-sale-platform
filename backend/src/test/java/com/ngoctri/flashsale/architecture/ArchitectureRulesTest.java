@@ -4,12 +4,15 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
+import com.tngtech.archunit.core.importer.ImportOption;
 import org.junit.jupiter.api.Test;
 
 class ArchitectureRulesTest {
 
     private static final JavaClasses APPLICATION_CLASSES =
-            new ClassFileImporter().importPackages("com.ngoctri.flashsale");
+            new ClassFileImporter()
+                    .withImportOption(ImportOption.DoNotIncludeTests.INSTANCE)
+                    .importPackages("com.ngoctri.flashsale");
 
     @Test
     void domainMustRemainIndependentOfFrameworksAndOuterLayers() {
