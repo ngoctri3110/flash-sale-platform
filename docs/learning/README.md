@@ -38,6 +38,7 @@ Các guide trực quan dùng Mermaid để bạn xem ngay trên GitHub Pages và
 | Muốn học Spring Security | Chặng 5 | Chặng 6 |
 | Muốn hiểu microservices | Chặng 2 → 4 | Chặng 6 |
 | Muốn học cách Tech Lead phân tích và thiết kế hệ thống | [Tech Lead system design guide](../visual-guides/tech_lead_system_design_process_guide.md) | Scenario workbook + capstone |
+| Muốn luyện năng lực Tech Lead ngoài code | [Tech Lead readiness & ownership](../visual-guides/tech-lead-readiness-ownership_guide.md) | Ownership + mentoring + incident |
 | Muốn học React/frontend qua product thật | [Frontend track](frontend-track.md) | Chặng 2 → 3 |
 | Muốn học immutability/value objects | [Java immutability guide](../visual-guides/java-immutability-value-objects_guide.md) | Chặng 1 → 3 |
 | Muốn học TLS/JWT/OIDC thực hành | [Security protocols lab](../visual-guides/spring-security-tls-jwt-oidc_lab_guide.md) | Chặng 5 |
@@ -261,6 +262,7 @@ Các module này bổ sung chiều sâu cho chặng chính, không cần học t
 - [Java immutability và value objects](../visual-guides/java-immutability-value-objects_guide.md): `final`, record, snapshot, immutable event và thread reasoning.
 - [TLS, JWT và OAuth/OIDC lab](../visual-guides/spring-security-tls-jwt-oidc_lab_guide.md): HTTPS, token validation, scope, IDOR, certificate rotation.
 - [Design patterns và TDD](../visual-guides/java-design-patterns-tdd_guide.md): Factory, Decorator, Singleton, Observer, Strategy và red-green-refactor.
+- [Tech Lead readiness & ownership](../visual-guides/tech-lead-readiness-ownership_guide.md): discovery, decision, delivery, stakeholder communication, mentoring, incident, SLO/DORA và cost.
 
 ## Bản đồ chọn nhanh
 
